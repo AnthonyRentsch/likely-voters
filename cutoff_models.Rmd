@@ -1,0 +1,123 @@
+---
+title: "Cutoff Models"
+date: "2017-11-05"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    collapsed: false
+    smooth_scroll: false
+    df_print: kable
+---
+
+```{r setup, echo = FALSE, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::read_chunk('load.R')
+```
+
+```{r, echo = FALSE, include = FALSE}
+# run load.R 
+<<load>> 
+```
+
+# Introduction
+
+In this document, I will define and create the cutoff models that I will use for my analysis. To start, I'll create a training set (70%) and test set (30%) for the pooled CCES data.
+
+```{r}
+# create training and test sets
+train <- c()
+test <- c()
+```
+
+Next I'll get into model building and evaluation. The sections will proceed as follows:
+
+* Vote intent
+* Vote intent + vote history
+* Perry-Gallup index
+* Logistic regression
+    + Perry-Gallup
+    + Perry-Gallup + all variables potentially related to turnout 
+   + Perry-Gallup + all variables potentially related to turnout + structural election variables
+* Random forests
+    + Perry-Gallup
+    + Perry-Gallup + all variables potentially related to turnout 
+    + Perry-Gallup + all variables potentially related to turnout + structural election variables
+  
+In each section I will create a model and then evaluate how well it predicts voting behavior on an individual-level using a simulation-based approach. At the end, I will use these models to make election predictions.
+
+# Vote Intent
+
+For now, I am doing this for 2016 until I can create the pooled data set. Here I treat people who report that they have already voted the same as people who report that they definitely plan to vote. Note that the weight I use -- `commonweight_vv` from the `cces16` data -- combines weights based on age, gender, education, race, voter registration, ideology, baseline party identification, born again status, and political interest.
+
+```{r}
+# grab data, filter only those with valid vote intent responses, arrange from most likely to least likely
+data <- cces16 %>% select(V101, state_abbreviation, CC16_364, CC16_364b, CC16_364c, 
+                          CL_E2016GVM, commonweight_vv) %>% 
+  rename(ID = V101, state = state_abbreviation, intent = CC16_364, earlychoice = CC16_364b, 
+         choice = CC16_364c, validated = CL_E2016GVM, weight = commonweight_vv) %>% 
+  filter(intent %in% c(1,2,3,4,5)) %>% 
+  mutate(intent = replace(intent, intent == 3, 1)) %>% 
+  arrange(intent)
+
+# merge vote choice for early/absentee voters and prospective voters
+data <- data %>% 
+  filter(intent != 9) %>% 
+  mutate(choice = replace(choice, earlychoice == 1, 1)) %>% 
+  mutate(choice = replace(choice, earlychoice == 2, 2))
+
+# define turnout rate  
+# for now I used actual turnout rate from 2016, but will soon incorporate a range of estimates into this
+turnout <- 0.602
+```
+
+
+
+Create table comparing individual-level turnout prediction accuracy.
+
+```{r}
+validation_by_intent <- function(data, turnout){
+  willvote <- data %>% 
+    slice(1:(nrow(data)*turnout))
+  wontvote <- data %>% 
+    anti_join(willvote, by = "ID")
+
+  pred_voters <- willvote %>% 
+    count(validated = !is.na(validated)) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  pred_nonvoters <- wontvote %>% 
+    count(validated = !is.na(validated)) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+    rename(voters = percent_v, nonvoters = percent_nv)
+}
+
+validation_by_intent(data, turnout)
+```
+
+
+
+Create table comparing election predictions.
+
+```{r}
+data %>% 
+  slice(1:(nrow(data)*turnout)) %>% 
+  filter(choice %in% c(1,2) | earlychoice %in% c(1,2)) %>% 
+  mutate(choice = replace(choice, choice == 1, "Trump")) %>% 
+  mutate(choice = replace(choice, choice == 2, "Clinton")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+
+#need to incorporate range of turnout possibilities
+```
