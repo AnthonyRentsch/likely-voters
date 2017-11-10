@@ -52,34 +52,26 @@ In each section I will create a model and then evaluate how well it predicts vot
 For now, I am doing this for 2016 until I can create the pooled data set. Here I treat people who report that they have already voted the same as people who report that they definitely plan to vote. Note that the weight I use -- `commonweight_vv` from the `cces16` data -- combines weights based on age, gender, education, race, voter registration, ideology, baseline party identification, born again status, and political interest.
 
 ```{r}
-# grab data, filter only those with valid vote intent responses, arrange from most likely to least likely
+# grab data and filter only those with valid vote intent responses
 data <- cces16 %>% select(V101, state_abbreviation, CC16_364, CC16_364b, CC16_364c, 
-                          CL_E2016GVM, commonweight_vv) %>% 
+                          CL_E2016GVM, commonweight) %>% 
   rename(ID = V101, state = state_abbreviation, intent = CC16_364, earlychoice = CC16_364b, 
-         choice = CC16_364c, validated = CL_E2016GVM, weight = commonweight_vv) %>% 
-  filter(intent %in% c(1,2,3,4,5)) %>% 
-  mutate(intent = replace(intent, intent == 3, 1)) %>% 
-  arrange(intent)
+         choice = CC16_364c, validated = CL_E2016GVM, weight = commonweight) %>% 
+  filter(intent %in% c(1,2,3,4,5))
 
 # merge vote choice for early/absentee voters and prospective voters
 data <- data %>% 
   filter(intent != 9) %>% 
   mutate(choice = replace(choice, earlychoice == 1, 1)) %>% 
   mutate(choice = replace(choice, earlychoice == 2, 2))
-
-# define turnout rate  
-# for now I used actual turnout rate from 2016, but will soon incorporate a range of estimates into this
-turnout <- 0.602
 ```
 
-
-
-Create table comparing individual-level turnout prediction accuracy.
+## Individual-level turnout
 
 ```{r}
-validation_by_intent <- function(data, turnout){
+validation_by_intent <- function(intention){
   willvote <- data %>% 
-    slice(1:(nrow(data)*turnout))
+    filter(intent %in% intention)
   wontvote <- data %>% 
     anti_join(willvote, by = "ID")
 
@@ -101,16 +93,65 @@ validation_by_intent <- function(data, turnout){
     rename(voters = percent_v, nonvoters = percent_nv)
 }
 
-validation_by_intent(data, turnout)
 ```
 
+Create table comparing individual-level turnout prediction accuracy when we define likely voters as:
 
+* those who say they already voted
 
-Create table comparing election predictions.
+```{r, echo = FALSE}
+validation_by_intent(3)
+```
+
+* those who say they will definitely vote or have voted already
+
+```{r, echo = FALSE}
+validation_by_intent(c(1,3))
+```
+
+* those who say they will definitely vote, have voted already, or will probably vote
+
+```{r, echo = FALSE}
+validation_by_intent(c(1,2,3))
+```
+
+* those who say they will definitely vote, have voted already, will probably vote, or who are undecided
+
+```{r, echo = FALSE}
+validation_by_intent(c(1,2,3,5))
+```
+
+* all respondents in the sample
+
+```{r, echo = FALSE}
+validation_by_intent(c(1,2,3,4,5))
+```
+
+Let's sum that all up.
+
+```{r, echo = FALSE, warning = FALSE}
+df <- data.frame(model = c("Already voted", "Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
+           true_positive = c(66.47, 62.44, 59.47, 57.12, 52.89),
+           false_positive = c(33.53, 37.56, 40.53, 42.88, 47.11),
+           false_negative = c(52.56, 15.64, 8.54, 4.8, NA),
+           true_negative = c(47.44, 84.36, 91.46, 95.2, NA)) 
+df$model <- factor(df$model, levels = df$model)
+df %>% gather(type, value, true_positive:true_negative) %>% 
+  ggplot(aes(factor(model), value, fill = type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "model", y = "rate") +
+  scale_fill_grey()
+  #scale_fill_brewer(palette = "Spectral")
+```
+
+## Election predictions
+
 
 ```{r}
-data %>% 
-  slice(1:(nrow(data)*turnout)) %>% 
+vote_choice_intent <- function(intention){
+  data %>% 
+  filter(intent %in% intention) %>% 
   filter(choice %in% c(1,2) | earlychoice %in% c(1,2)) %>% 
   mutate(choice = replace(choice, choice == 1, "Trump")) %>% 
   mutate(choice = replace(choice, choice == 2, "Clinton")) %>% 
@@ -118,6 +159,53 @@ data %>%
   summarise(n = sum(weight)) %>% 
   mutate(vote_share = round(n/sum(n)*100,2)) %>% 
   select(-n)
-
-#need to incorporate range of turnout possibilities
+}
 ```
+
+Create table comparing election predictions, when we define likely voters as:
+
+* those who say they already voted
+
+```{r, echo = FALSE}
+vote_choice_intent(3)
+```
+
+* those who say they will definitely vote or have voted already
+
+```{r, echo = FALSE}
+vote_choice_intent(c(1,3))
+```
+
+* those who say they will definitely vote, have voted already, or will probably vote
+
+```{r, echo = FALSE}
+vote_choice_intent(c(1,2,3))
+```
+
+* those who say they will definitely vote, have voted already, will probably vote, or who are undecided
+
+```{r, echo = FALSE}
+vote_choice_intent(c(1,2,3,5))
+```
+
+* all respondents in the sample
+
+```{r, echo = FALSE}
+vote_choice_intent(c(1,2,3,4,5))
+```
+
+Let's sum that all up.
+
+```{r, echo = FALSE}
+df <- data.frame(model = c("Already voted", "Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
+                 margin = c((61.27-38.73), (54.07-45.93), (54.38-45.62), (54.31-45.69), (54.35-45.65)))
+df$model <- factor(df$model, levels = df$model)
+
+df %>%  
+  ggplot() +
+  geom_col(aes(model, margin)) +
+  coord_flip() +
+  labs(y = "Clinton's predicted margin of victory")
+```
+
+# Vote Intent + Vote History
