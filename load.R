@@ -1,6 +1,7 @@
 ## @knitr load
 
 #set dependencies
+library(plyr)
 library(readr)
 library(tidyverse)
 library(ggplot2)

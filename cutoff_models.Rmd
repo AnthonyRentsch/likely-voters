@@ -164,15 +164,10 @@ vote_choice_intent <- function(intention){
 Now we compare election predictions, using the same likely voter models as specified above.
 
 ```{r, echo = FALSE}
-# those who say they already voted
 mod1 <- vote_choice_intent(3)
-# those who say they will definitely vote or have voted already
 mod2 <- vote_choice_intent(c(1,3))
-# those who say they will definitely vote, have voted already, or will probably vote
 mod3 <- vote_choice_intent(c(1,2,3))
-# those who say they will definitely vote, have voted already, will probably vote, or who are undecided
 mod4 <- vote_choice_intent(c(1,2,3,5))
-# all respondents in the sample
 mod5 <- vote_choice_intent(c(1,2,3,4,5))
 
 mods <- list(mod1, mod2, mod3, mod4, mod5)
@@ -249,15 +244,10 @@ validation_intent_history <- function(intention, history){
 First, I'll consider everyone who self-reported that they voted in 2012. Note that this will necessarily exclude any respondent who was too young to vote in 2012 (unless they lie on this question, of course).
 
 ```{r, echo = FALSE, warning = FALSE}
-# those who say they already voted
 mod1 <- validation_intent_history(3, c(1,2,3))
-# those who say they will definitely vote or have voted already
 mod2 <- validation_intent_history(c(1,3), c(1,2,3))
-# those who say they will definitely vote, have voted already, or will probably vote
 mod3 <- validation_intent_history(c(1,2,3), c(1,2,3))
-# those who say they will definitely vote, have voted already, will probably vote, or who are undecided
 mod4 <- validation_intent_history(c(1,2,3,5), c(1,2,3))
-# all respondents in the sample
 mod5 <- validation_intent_history(c(1,2,3,4,5), c(1,2,3))
 
 mods <- list(mod1, mod2, mod3, mod4, mod5)
@@ -287,15 +277,10 @@ df %>% gather(type, value, true_positive:true_negative) %>%
 ```
 
 ```{r, echo = FALSE, warning = FALSE}
-# those who say they already voted
 mod1 <- validation_intent_history(3, c(1,2,3,5))
-# those who say they will definitely vote or have voted already
 mod2 <- validation_intent_history(c(1,3), c(1,2,3,5))
-# those who say they will definitely vote, have voted already, or will probably vote
 mod3 <- validation_intent_history(c(1,2,3), c(1,2,3,5))
-# those who say they will definitely vote, have voted already, will probably vote, or who are undecided
 mod4 <- validation_intent_history(c(1,2,3,5), c(1,2,3,5))
-# all respondents in the sample
 mod5 <- validation_intent_history(c(1,2,3,4,5), c(1,2,3,5))
 
 mods <- list(mod1, mod2, mod3, mod4, mod5)
@@ -325,15 +310,10 @@ df %>% gather(type, value, true_positive:true_negative) %>%
 ```
 
 ```{r, echo = FALSE, warning = FALSE}
-# those who say they already voted
 mod1 <- validation_intent_history(3, c(1,2,3,4,5))
-# those who say they will definitely vote or have voted already
 mod2 <- validation_intent_history(c(1,3), c(1,2,3,4,5))
-# those who say they will definitely vote, have voted already, or will probably vote
 mod3 <- validation_intent_history(c(1,2,3), c(1,2,3,4,5))
-# those who say they will definitely vote, have voted already, will probably vote, or who are undecided
 mod4 <- validation_intent_history(c(1,2,3,5), c(1,2,3,4,5))
-# all respondents in the sample
 mod5 <- validation_intent_history(c(1,2,3,4,5), c(1,2,3,4,5))
 
 mods <- list(mod1, mod2, mod3, mod4, mod5)
@@ -366,6 +346,96 @@ Might be useful to make a table with this, as this is a lot to take in visually.
 
 ## Election predictions
 
+```{r, echo = FALSE, warning = FALSE}
+vote_choice_intent <- function(intention, history){
+  data %>% 
+  filter(intent %in% intention, vote12 %in% history) %>% 
+  filter(choice %in% c(1,2) | earlychoice %in% c(1,2)) %>% 
+  mutate(choice = replace(choice, choice == 1, "Trump")) %>% 
+  mutate(choice = replace(choice, choice == 2, "Clinton")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+```
+
+```{r, echo = FALSE}
+# voted in 2012
+mod1 <- vote_choice_intent(3, c(1,2,3))
+mod2 <- vote_choice_intent(c(1,3), c(1,2,3))
+mod3 <- vote_choice_intent(c(1,2,3), c(1,2,3))
+mod4 <- vote_choice_intent(c(1,2,3,5), c(1,2,3))
+mod5 <- vote_choice_intent(c(1,2,3,4,5), c(1,2,3))
+
+mods <- list(mod1, mod2, mod3, mod4, mod5)
+
+df1 <- data.frame(model = c("Already voted", "Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
+                 margin = vector(length = 5))
+
+i <- 1
+while(i <= length(mods)){
+  df1$margin[i] = mods[[i]]$vote_share[mods[[i]]$choice == "Clinton"] - mods[[i]]$vote_share[mods[[i]]$choice=="Trump"]
+  i = i + 1
+}
+
+df1$model <- factor(df1$model, levels = df1$model)
+
+# voted in 2012 or don't recall
+mod1 <- vote_choice_intent(3, c(1,2,3,5))
+mod2 <- vote_choice_intent(c(1,3), c(1,2,3,5))
+mod3 <- vote_choice_intent(c(1,2,3), c(1,2,3,5))
+mod4 <- vote_choice_intent(c(1,2,3,5), c(1,2,3,5))
+mod5 <- vote_choice_intent(c(1,2,3,4,5), c(1,2,3,5))
+
+mods <- list(mod1, mod2, mod3, mod4, mod5)
+
+df2 <- data.frame(model = c("Already voted", "Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
+                 margin = vector(length = 5))
+
+i <- 1
+while(i <= length(mods)){
+  df2$margin[i] = mods[[i]]$vote_share[mods[[i]]$choice == "Clinton"] - mods[[i]]$vote_share[mods[[i]]$choice == "Trump"]
+  i = i + 1
+}
+
+df2$model <- factor(df2$model, levels = df2$model)
+
+# voted in 2012, don't recall, or did not vote
+mod1 <- vote_choice_intent(3, c(1,2,3,4,5))
+mod2 <- vote_choice_intent(c(1,3), c(1,2,3,4,5))
+mod3 <- vote_choice_intent(c(1,2,3), c(1,2,3,4,5))
+mod4 <- vote_choice_intent(c(1,2,3,5), c(1,2,3,4,5))
+mod5 <- vote_choice_intent(c(1,2,3,4,5), c(1,2,3,4,5))
+
+mods <- list(mod1, mod2, mod3, mod4, mod5)
+
+df3 <- data.frame(model = c("Already voted", "Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
+                 margin = vector(length = 5))
+
+i <- 1
+while(i <= length(mods)){
+  df3$margin[i] = mods[[i]]$vote_share[mods[[i]]$choice == "Clinton"] - mods[[i]]$vote_share[mods[[i]]$choice == "Trump"]
+  i = i + 1
+}
+
+df3$model <- factor(df3$model, levels = df3$model)
+```
+
+```{r, echo = FALSE, warning = FALSE}
+df_combined <- join_all(list(df1, df2, df3), by = "model")
+names(df_combined) <- c("model", "Voted in 2012", "Voted in 2012 or didn't recall", "All")
+
+df_combined %>% gather(`Vote history`, value, `Voted in 2012`:All) %>%  
+  ggplot(aes(factor(model), value, fill = `Vote history`)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  coord_flip() +
+  labs(x = "Vote intent", y = "Clinton's predicted margin of victory") +
+  scale_fill_grey() +
+  geom_hline(yintercept = 2.1, lty = 2, colour = "red")
+```
+
+My takeaway is that adding vote history does not add much information on top of vote intent. But this is just for 2016 election predictions - may be useful to predict individual-level turnout and may be useful for other elections still.
 
 
 # Perry-Gallup index
