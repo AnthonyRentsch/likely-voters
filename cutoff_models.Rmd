@@ -429,6 +429,7 @@ names(df_combined) <- c("model", "Voted in 2012", "Voted in 2012 or didn't recal
 df_combined %>% gather(`Vote history`, value, `Voted in 2012`:All) %>%  
   ggplot(aes(factor(model), value, fill = `Vote history`)) +
   geom_bar(stat = "identity", position = "dodge") +
+  theme(axis.text.y = element_text(angle = 45, hjust = 1)) +
   coord_flip() +
   labs(x = "Vote intent", y = "Clinton's predicted margin of victory") +
   scale_fill_grey() +
@@ -439,3 +440,33 @@ My takeaway is that adding vote history does not add much information on top of 
 
 
 # Perry-Gallup index
+
+In their 2016 report on likely voter methodology, the Pew Research Center uses the Perry-Gallup index to measure likelyhood to vote. The questions they use, as well as the response options, are listed below. Response options that are bolded give a respondent a point in the index.
+
+* How much thought have you given to the coming November election? **Quite a lot**, **some**, only a little, none.
+* Have you ever voted in your precinct or election district? **Yes**, no.
+* Would you say you follow what’s going on in government and public affairs **most of the time**, **some of the time**, only now and then, hardly at all?
+* How often would you say you vote? **Always**, **nearly always**, part of the time, seldom.
+* How likely are you to vote in the general election this November? **Definitely will vote**,
+**probably will vote**, probably will not vote, definitely will not vote.
+* In the 2012 presidential election between Barack Obama and Mitt Romney, did things come up
+that kept you from voting, or did you happen to vote? **Yes, voted**; no.
+* Please rate your chance of voting in November on a scale of 10 to 1. 0-8, **9**, **10**.
+
+Since the common content of the CCES does not include all of these survey items (and question wording varies when they do appear), I will attempt to recreate the index using what is available to me. 
+
+The three variables I will consider are vote intent, vote history, and political interest, which capture 5 of the 7 items on the Perry-Gallup index. The one dimension that I will not be able to recreate is historical voting behavior (voted in precinct before, voting frequency), as this information is not available on the CCES.
+
+```{r}
+data <- cces16 %>% select(V101, state_abbreviation, CC16_364b, CC16_364c,  
+                          CL_E2016GVM, commonweight, CC16_326, CC16_364, newsint) %>% 
+  rename(ID = V101, state = state_abbreviation, earlychoice = CC16_364b, choice = CC16_364c, 
+         validated = CL_E2016GVM, weight = commonweight, vote12 = CC16_326, intent = CC16_364, 
+         interest = newsint)
+
+# merge vote choice for early/absentee voters and prospective voters
+data <- data %>% 
+  mutate(choice = replace(choice, earlychoice == 1, 1)) %>% 
+  mutate(choice = replace(choice, earlychoice == 2, 2))
+```
+
