@@ -139,7 +139,7 @@ df %>% gather(type, value, true_positive:true_negative) %>%
   ggplot(aes(factor(model), value, fill = type)) +
   geom_bar(stat = "identity", position = "dodge") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  labs(x = "model", y = "rate") +
+  labs(x = "model", y = "rate", title = "Individual level vote validation by vote intent model") +
   scale_fill_grey()
 ```
 
@@ -455,18 +455,161 @@ that kept you from voting, or did you happen to vote? **Yes, voted**; no.
 
 Since the common content of the CCES does not include all of these survey items (and question wording varies when they do appear), I will attempt to recreate the index using what is available to me. 
 
-The three variables I will consider are vote intent, vote history, and political interest, which capture 5 of the 7 items on the Perry-Gallup index. The one dimension that I will not be able to recreate is historical voting behavior (voted in precinct before, voting frequency), as this information is not available on the CCES.
+The three variables I will consider are vote intent, vote history, and political interest, which capture 5 of the 7 items on the Perry-Gallup index. The one dimension that I will not be able to recreate is historical voting behavior (voted in precinct before, voting frequency), as this information is not available on the CCES. Here are the CCES questions I will use along with the response options, and how many points each response option gives an individual toward the index. 
 
-```{r}
+* Do you intend to vote in 2016 general election?
+    + Yes, definitely (**+2**)
+    + Probably (**+1**)
+    + I already voted (early or absentee) (**+2**)
+    + No
+    + Undecided
+* In 2012, who did you vote for in the election for President?
+    + Barack Obama (**+1**)
+    + Mitt Romney (**+1**)
+    + Someone else (**+1**)
+    + Did not vote
+    + Don't recall
+* Some people seem to follow what is going on in government or public affairs most of the time, whether there's an election or not. Others aren't that interested. Would you say you follow what is going on in government and public affairs...
+    + Most of the time (**+2**)
+    + Some of the time (**+1**)
+    + Only now and then
+    + Hardly at all
+    + Don't know
+
+The minimum score, corresponding to those least likely to vote, is 0 while the maximum score, corresponding to those most likely to vote, is 5. Since respondents who are younger than 22 would not have had the chance to vote in the previous election, they are given one additional point.
+
+```{r, warning = FALSE}
 data <- cces16 %>% select(V101, state_abbreviation, CC16_364b, CC16_364c,  
-                          CL_E2016GVM, commonweight, CC16_326, CC16_364, newsint) %>% 
+                          CL_E2016GVM, commonweight, CC16_326, CC16_364, newsint, birthyr) %>% 
   rename(ID = V101, state = state_abbreviation, earlychoice = CC16_364b, choice = CC16_364c, 
          validated = CL_E2016GVM, weight = commonweight, vote12 = CC16_326, intent = CC16_364, 
-         interest = newsint)
+         interest = newsint, birthyr = birthyr) %>% 
+  mutate(age = 2016 - birthyr) %>% 
+  select(-birthyr)
 
 # merge vote choice for early/absentee voters and prospective voters
 data <- data %>% 
   mutate(choice = replace(choice, earlychoice == 1, 1)) %>% 
   mutate(choice = replace(choice, earlychoice == 2, 2))
+
+# calculate Perry-Gallup index
+data <- data %>% mutate(perry_gallup = 0)
+
+# vote intent
+data$perry_gallup[data$intent == 1 | data$intent == 3] <- data$perry_gallup + 2
+data$perry_gallup[data$intent == 2]  <- data$perry_gallup + 1
+
+# vote history
+data$perry_gallup[data$vote12 == 1 | data$vote12 == 2 | data$vote12 == 3] <- data$perry_gallup + 1
+
+# political interest
+data$perry_gallup[!is.na(data$interest) && data$interest == 1] <- data$perry_gallup + 2
+data$perry_gallup[!is.na(data$interest) && data$interest == 2] <- data$perry_gallup + 1
+
+# age adjustment
+data$perry_gallup[data$age < 22 && (data$vote12 == 4 | data$vote12 == 5 | 
+                                      data$vote12 == 8 | data$vote12 == 9)] <- data$perry_gallup + 1
 ```
+
+## Individual-level turnout
+
+```{r, echo = FALSE, warning = FALSE}
+validation_by_pg <- function(index) {
+  willvote <- data %>% 
+    filter(perry_gallup %in% index)
+  wontvote <- data %>% 
+    anti_join(willvote, by = "ID")
+
+  pred_voters <- willvote %>% 
+    count(validated = !is.na(validated)) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  pred_nonvoters <- wontvote %>% 
+    count(validated = !is.na(validated)) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+    rename(voters = percent_v, nonvoters = percent_nv)
+}
+mod1 <- validation_by_pg(5)
+mod2 <- validation_by_pg(c(5,4))
+mod3 <- validation_by_pg(c(5,4,3))
+mod4 <- validation_by_pg(c(5,4,3,2))
+mod5 <- validation_by_pg(c(5,4,3,2,1))
+
+mods <- list(mod1, mod2, mod3, mod4, mod5)
+
+df <- data.frame(model = c("5s","5s and 4s","5s, 4s, and 3s","5s, 4s, 3s, and 2s","All"),
+                 true_positive = vector(length = 5),
+                 false_positive = vector(length = 5),
+                 false_negative = vector(length = 5),
+                 true_negative = vector(length = 5))
+i <- 1
+while(i <= length(mods)){
+  df$true_positive[i] <- mods[[i]]$voters[mods[[i]]$validated == "Yes"]
+  df$false_positive[i] <- mods[[i]]$voters[mods[[i]]$validated == "No"]
+  df$false_negative[i] <- mods[[i]]$nonvoters[mods[[i]]$validated == "Yes"]
+  df$true_negative[i] <- mods[[i]]$nonvoters[mods[[i]]$validated == "No"]
+  i = i +1
+}
+                 
+df$model <- factor(df$model, levels = df$model)
+
+df %>% gather(type, value, true_positive:true_negative) %>%
+  ggplot(aes(factor(model), value, fill = type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "model", y = "rate", title = "Individual level vote validation by Perry-Gallup index score") +
+  scale_fill_grey()
+```
+
+## Election predictions
+
+```{r, echo = FALSE, warning = FALSE}
+vote_choice_pg <- function(index){
+  data %>% 
+  filter(perry_gallup %in% index) %>% 
+  filter(choice %in% c(1,2) | earlychoice %in% c(1,2)) %>% 
+  mutate(choice = replace(choice, choice == 1, "Trump")) %>% 
+  mutate(choice = replace(choice, choice == 2, "Clinton")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+mod1 <- vote_choice_pg(5)
+mod2 <- vote_choice_pg(c(5,4))
+mod3 <- vote_choice_pg(c(5,4,3))
+mod4 <- vote_choice_pg(c(5,4,3,2))
+mod5 <- vote_choice_pg(c(5,4,3,2,1))
+
+mods <- list(mod1, mod2, mod3, mod4, mod5)
+
+df <- data.frame(model = c("5s","5s and 4s","5s, 4s, and 3s","5s, 4s, 3s, and 2s","All","Actual result"),
+                 margin = vector(length = 6))
+
+i <- 1
+while(i <= length(mods)){
+  df$margin[i] = mods[[i]]$vote_share[mods[[i]]$choice == "Clinton"] - mods[[i]]$vote_share[mods[[i]]$choice == "Trump"]
+  i = i + 1
+}
+
+df$margin[6] <- 2.1
+
+df$model <- factor(df$model, levels = df$model)
+
+df %>%  
+  ggplot() +
+  geom_col(aes(model, margin)) +
+  coord_flip() +
+  labs(y = "Clinton's predicted margin of victory")
+```
+
 
