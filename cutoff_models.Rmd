@@ -1,6 +1,6 @@
 ---
 title: "Cutoff Models"
-date: "2017-11-05"
+date: "2017-11-25"
 output:
   html_document:
     toc: true
@@ -31,7 +31,7 @@ In this document, I will define and create the cutoff models that I will use for
 * Logistic regression
     + Perry-Gallup
     + Perry-Gallup + all variables potentially related to turnout 
-   + Perry-Gallup + all variables potentially related to turnout + structural election variables
+    + Perry-Gallup + all variables potentially related to turnout + structural election variables
 * Random forests
     + Perry-Gallup
     + Perry-Gallup + all variables potentially related to turnout 
@@ -101,8 +101,6 @@ First we compare individual-level turnout prediction accuracy when we define lik
 Let's sum that all up, where
 
 * true positive rate = rate at which predicted voters are validated as voters
-* false positive rate = rate at which predicted voters are not validated as voters
-* false negative rate = rate at which predicted nonvoters are validated as voters
 * true negative rate = rate at which predicted nonvoters are not validated as voters
 
 ```{r, echo = FALSE, warning = FALSE}
@@ -121,14 +119,14 @@ mods <- list(mod1, mod2, mod3, mod4, mod5)
 
 df <- data.frame(model = c("Already voted", "Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
                  true_positive = vector(length = 5),
-                 false_positive = vector(length = 5),
-                 false_negative = vector(length = 5),
+                 #false_positive = vector(length = 5),
+                 #false_negative = vector(length = 5),
                  true_negative = vector(length = 5))
 i <- 1
 while(i <= length(mods)){
   df$true_positive[i] <- mods[[i]]$voters[mods[[i]]$validated == "Yes"]
-  df$false_positive[i] <- mods[[i]]$voters[mods[[i]]$validated == "No"]
-  df$false_negative[i] <- mods[[i]]$nonvoters[mods[[i]]$validated == "Yes"]
+  #df$false_positive[i] <- mods[[i]]$voters[mods[[i]]$validated == "No"]
+  #df$false_negative[i] <- mods[[i]]$nonvoters[mods[[i]]$validated == "Yes"]
   df$true_negative[i] <- mods[[i]]$nonvoters[mods[[i]]$validated == "No"]
   i = i +1
 }
@@ -164,16 +162,15 @@ vote_choice_intent <- function(intention){
 Now we compare election predictions, using the same likely voter models as specified above.
 
 ```{r, echo = FALSE}
-mod1 <- vote_choice_intent(3)
-mod2 <- vote_choice_intent(c(1,3))
-mod3 <- vote_choice_intent(c(1,2,3))
-mod4 <- vote_choice_intent(c(1,2,3,5))
-mod5 <- vote_choice_intent(c(1,2,3,4,5))
+mod1 <- vote_choice_intent(c(1,3))
+mod2 <- vote_choice_intent(c(1,2,3))
+mod3 <- vote_choice_intent(c(1,2,3,5))
+mod4 <- vote_choice_intent(c(1,2,3,4,5))
 
-mods <- list(mod1, mod2, mod3, mod4, mod5)
+mods <- list(mod1, mod2, mod3, mod4)
 
-df <- data.frame(model = c("Already voted", "Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents", "Actual result"),
-                 margin = vector(length = 6))
+df <- data.frame(model = c("Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents", "Actual result"),
+                 margin = vector(length = 5))
 
 i <- 1
 while(i <= length(mods)){
@@ -181,7 +178,7 @@ while(i <= length(mods)){
   i = i + 1
 }
 
-df$margin[6] <- 2.1
+df$margin[5] <- 2.1
 
 df$model <- factor(df$model, levels = df$model)
 
@@ -244,24 +241,19 @@ validation_intent_history <- function(intention, history){
 First, I'll consider everyone who self-reported that they voted in 2012. Note that this will necessarily exclude any respondent who was too young to vote in 2012 (unless they lie on this question, of course).
 
 ```{r, echo = FALSE, warning = FALSE}
-mod1 <- validation_intent_history(3, c(1,2,3))
-mod2 <- validation_intent_history(c(1,3), c(1,2,3))
-mod3 <- validation_intent_history(c(1,2,3), c(1,2,3))
-mod4 <- validation_intent_history(c(1,2,3,5), c(1,2,3))
-mod5 <- validation_intent_history(c(1,2,3,4,5), c(1,2,3))
+mod1 <- validation_intent_history(c(1,3), c(1,2,3))
+mod2 <- validation_intent_history(c(1,2,3), c(1,2,3))
+mod3 <- validation_intent_history(c(1,2,3,5), c(1,2,3))
+mod4 <- validation_intent_history(c(1,2,3,4,5), c(1,2,3))
 
-mods <- list(mod1, mod2, mod3, mod4, mod5)
+mods <- list(mod1, mod2, mod3, mod4)
 
-df <- data.frame(model = c("Already voted", "Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
-                 true_positive = vector(length = 5),
-                 false_positive = vector(length = 5),
-                 false_negative = vector(length = 5),
-                 true_negative = vector(length = 5))
+df <- data.frame(model = c("Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
+                 true_positive = vector(length = 4),
+                 true_negative = vector(length = 4))
 i <- 1
 while(i <= length(mods)){
   df$true_positive[i] <- mods[[i]]$voters[mods[[i]]$validated == "Yes"]
-  df$false_positive[i] <- mods[[i]]$voters[mods[[i]]$validated == "No"]
-  df$false_negative[i] <- mods[[i]]$nonvoters[mods[[i]]$validated == "Yes"]
   df$true_negative[i] <- mods[[i]]$nonvoters[mods[[i]]$validated == "No"]
   i = i +1
 }
@@ -277,24 +269,19 @@ df %>% gather(type, value, true_positive:true_negative) %>%
 ```
 
 ```{r, echo = FALSE, warning = FALSE}
-mod1 <- validation_intent_history(3, c(1,2,3,5))
-mod2 <- validation_intent_history(c(1,3), c(1,2,3,5))
-mod3 <- validation_intent_history(c(1,2,3), c(1,2,3,5))
-mod4 <- validation_intent_history(c(1,2,3,5), c(1,2,3,5))
-mod5 <- validation_intent_history(c(1,2,3,4,5), c(1,2,3,5))
+mod1 <- validation_intent_history(c(1,3), c(1,2,3,5))
+mod2 <- validation_intent_history(c(1,2,3), c(1,2,3,5))
+mod3 <- validation_intent_history(c(1,2,3,5), c(1,2,3,5))
+mod4 <- validation_intent_history(c(1,2,3,4,5), c(1,2,3,5))
 
-mods <- list(mod1, mod2, mod3, mod4, mod5)
+mods <- list(mod1, mod2, mod3, mod4)
 
-df <- data.frame(model = c("Already voted", "Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
-                 true_positive = vector(length = 5),
-                 false_positive = vector(length = 5),
-                 false_negative = vector(length = 5),
-                 true_negative = vector(length = 5))
+df <- data.frame(model = c("Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
+                 true_positive = vector(length = 4),
+                 true_negative = vector(length = 4))
 i <- 1
 while(i <= length(mods)){
   df$true_positive[i] <- mods[[i]]$voters[mods[[i]]$validated == "Yes"]
-  df$false_positive[i] <- mods[[i]]$voters[mods[[i]]$validated == "No"]
-  df$false_negative[i] <- mods[[i]]$nonvoters[mods[[i]]$validated == "Yes"]
   df$true_negative[i] <- mods[[i]]$nonvoters[mods[[i]]$validated == "No"]
   i = i +1
 }
@@ -310,24 +297,19 @@ df %>% gather(type, value, true_positive:true_negative) %>%
 ```
 
 ```{r, echo = FALSE, warning = FALSE}
-mod1 <- validation_intent_history(3, c(1,2,3,4,5))
-mod2 <- validation_intent_history(c(1,3), c(1,2,3,4,5))
-mod3 <- validation_intent_history(c(1,2,3), c(1,2,3,4,5))
-mod4 <- validation_intent_history(c(1,2,3,5), c(1,2,3,4,5))
-mod5 <- validation_intent_history(c(1,2,3,4,5), c(1,2,3,4,5))
+mod1 <- validation_intent_history(c(1,3), c(1,2,3,4,5))
+mod2 <- validation_intent_history(c(1,2,3), c(1,2,3,4,5))
+mod3 <- validation_intent_history(c(1,2,3,5), c(1,2,3,4,5))
+mod4 <- validation_intent_history(c(1,2,3,4,5), c(1,2,3,4,5))
 
-mods <- list(mod1, mod2, mod3, mod4, mod5)
+mods <- list(mod1, mod2, mod3, mod4)
 
-df <- data.frame(model = c("Already voted", "Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
-                 true_positive = vector(length = 5),
-                 false_positive = vector(length = 5),
-                 false_negative = vector(length = 5),
-                 true_negative = vector(length = 5))
+df <- data.frame(model = c("Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
+                 true_positive = vector(length = 4),
+                 true_negative = vector(length = 4))
 i <- 1
 while(i <= length(mods)){
   df$true_positive[i] <- mods[[i]]$voters[mods[[i]]$validated == "Yes"]
-  df$false_positive[i] <- mods[[i]]$voters[mods[[i]]$validated == "No"]
-  df$false_negative[i] <- mods[[i]]$nonvoters[mods[[i]]$validated == "Yes"]
   df$true_negative[i] <- mods[[i]]$nonvoters[mods[[i]]$validated == "No"]
   i = i +1
 }
@@ -362,16 +344,15 @@ vote_choice_intent <- function(intention, history){
 
 ```{r, echo = FALSE}
 # voted in 2012
-mod1 <- vote_choice_intent(3, c(1,2,3))
-mod2 <- vote_choice_intent(c(1,3), c(1,2,3))
-mod3 <- vote_choice_intent(c(1,2,3), c(1,2,3))
-mod4 <- vote_choice_intent(c(1,2,3,5), c(1,2,3))
-mod5 <- vote_choice_intent(c(1,2,3,4,5), c(1,2,3))
+mod1 <- vote_choice_intent(c(1,3), c(1,2,3))
+mod2 <- vote_choice_intent(c(1,2,3), c(1,2,3))
+mod3 <- vote_choice_intent(c(1,2,3,5), c(1,2,3))
+mod4 <- vote_choice_intent(c(1,2,3,4,5), c(1,2,3))
 
-mods <- list(mod1, mod2, mod3, mod4, mod5)
+mods <- list(mod1, mod2, mod3, mod4)
 
-df1 <- data.frame(model = c("Already voted", "Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
-                 margin = vector(length = 5))
+df1 <- data.frame(model = c("Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
+                 margin = vector(length = 4))
 
 i <- 1
 while(i <= length(mods)){
@@ -382,16 +363,15 @@ while(i <= length(mods)){
 df1$model <- factor(df1$model, levels = df1$model)
 
 # voted in 2012 or don't recall
-mod1 <- vote_choice_intent(3, c(1,2,3,5))
-mod2 <- vote_choice_intent(c(1,3), c(1,2,3,5))
-mod3 <- vote_choice_intent(c(1,2,3), c(1,2,3,5))
-mod4 <- vote_choice_intent(c(1,2,3,5), c(1,2,3,5))
-mod5 <- vote_choice_intent(c(1,2,3,4,5), c(1,2,3,5))
+mod1 <- vote_choice_intent(c(1,3), c(1,2,3,5))
+mod2 <- vote_choice_intent(c(1,2,3), c(1,2,3,5))
+mod3 <- vote_choice_intent(c(1,2,3,5), c(1,2,3,5))
+mod4 <- vote_choice_intent(c(1,2,3,4,5), c(1,2,3,5))
 
-mods <- list(mod1, mod2, mod3, mod4, mod5)
+mods <- list(mod1, mod2, mod3, mod4)
 
-df2 <- data.frame(model = c("Already voted", "Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
-                 margin = vector(length = 5))
+df2 <- data.frame(model = c("Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
+                 margin = vector(length = 4))
 
 i <- 1
 while(i <= length(mods)){
@@ -402,16 +382,15 @@ while(i <= length(mods)){
 df2$model <- factor(df2$model, levels = df2$model)
 
 # voted in 2012, don't recall, or did not vote
-mod1 <- vote_choice_intent(3, c(1,2,3,4,5))
-mod2 <- vote_choice_intent(c(1,3), c(1,2,3,4,5))
-mod3 <- vote_choice_intent(c(1,2,3), c(1,2,3,4,5))
-mod4 <- vote_choice_intent(c(1,2,3,5), c(1,2,3,4,5))
-mod5 <- vote_choice_intent(c(1,2,3,4,5), c(1,2,3,4,5))
+mod1 <- vote_choice_intent(c(1,3), c(1,2,3,4,5))
+mod2 <- vote_choice_intent(c(1,2,3), c(1,2,3,4,5))
+mod3 <- vote_choice_intent(c(1,2,3,5), c(1,2,3,4,5))
+mod4 <- vote_choice_intent(c(1,2,3,4,5), c(1,2,3,4,5))
 
-mods <- list(mod1, mod2, mod3, mod4, mod5)
+mods <- list(mod1, mod2, mod3, mod4)
 
-df3 <- data.frame(model = c("Already voted", "Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
-                 margin = vector(length = 5))
+df3 <- data.frame(model = c("Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
+                 margin = vector(length = 4))
 
 i <- 1
 while(i <= length(mods)){
@@ -547,14 +526,10 @@ mods <- list(mod1, mod2, mod3, mod4, mod5)
 
 df <- data.frame(model = c("5s","5s and 4s","5s, 4s, and 3s","5s, 4s, 3s, and 2s","All"),
                  true_positive = vector(length = 5),
-                 false_positive = vector(length = 5),
-                 false_negative = vector(length = 5),
                  true_negative = vector(length = 5))
 i <- 1
 while(i <= length(mods)){
   df$true_positive[i] <- mods[[i]]$voters[mods[[i]]$validated == "Yes"]
-  df$false_positive[i] <- mods[[i]]$voters[mods[[i]]$validated == "No"]
-  df$false_negative[i] <- mods[[i]]$nonvoters[mods[[i]]$validated == "Yes"]
   df$true_negative[i] <- mods[[i]]$nonvoters[mods[[i]]$validated == "No"]
   i = i +1
 }
@@ -613,3 +588,350 @@ df %>%
 ```
 
 
+
+# Logistic regression
+
+
+```{r, warning = FALSE, message = FALSE}
+# needs recoding faminc, pid7, CC16_300b, CC16_300c, CC16_300d_1, CC16_300d_2, CC16_300d_3, CC16_300d_4, CC16_300d_5
+# may need to recode some of these in load.R
+# to see how these variables are coded, see load.R
+data <- cces16 %>% select(V101, state_abbreviation, CC16_364b, CC16_364c,  
+                          CL_E2016GVM, commonweight, CC16_326, CC16_364, newsint, birthyr, gender,
+                          racial_group, educ, faminc, pid7, pew_churatd, marstat, citylength_2,
+                          CC16_300b, CC16_300c, CC16_300d_1, CC16_300d_2, CC16_300d_3, CC16_300d_4,
+                          CC16_300d_5) %>% 
+  rename(ID = V101, state = state_abbreviation, earlychoice = CC16_364b, choice = CC16_364c, 
+         validated = CL_E2016GVM, weight = commonweight, vote12 = CC16_326, intent = CC16_364, 
+         interest = newsint, birthyr = birthyr, gender = gender, race = racial_group, education = educ,
+         income = faminc, partisanship = pid7, religiosity = pew_churatd, marital_status = marstat,
+         residential_mobility = citylength_2, watch_news = CC16_300b, read_paper = CC16_300c,
+         posted_story_sm = CC16_300d_1, comment_sm = CC16_300d_2, read_story_sm = CC16_300d_3,
+         followed_event_sm = CC16_300d_4, forwarded_story_sm = CC16_300d_5) %>% 
+  mutate(age = 2016 - birthyr) %>% 
+  select(-birthyr)
+
+# merge vote choice for early/absentee voters and prospective voters
+data <- data %>% 
+  mutate(choice = replace(choice, earlychoice == 1, 1)) %>% 
+  mutate(choice = replace(choice, earlychoice == 2, 2))
+
+# calculate Perry-Gallup index
+data <- data %>% mutate(perry_gallup = 0)
+
+# vote intent
+data$perry_gallup[data$intent == 1 | data$intent == 3] <- data$perry_gallup + 2
+data$perry_gallup[data$intent == 2]  <- data$perry_gallup + 1
+
+# vote history
+data$perry_gallup[data$vote12 == 1 | data$vote12 == 2 | data$vote12 == 3] <- data$perry_gallup + 1
+
+# political interest
+data$perry_gallup[!is.na(data$interest) && data$interest == 1] <- data$perry_gallup + 2
+data$perry_gallup[!is.na(data$interest) && data$interest == 2] <- data$perry_gallup + 1
+
+# age adjustment
+data$perry_gallup[data$age < 22 && (data$vote12 == 4 | data$vote12 == 5 | 
+                                      data$vote12 == 8 | data$vote12 == 9)] <- data$perry_gallup + 1
+# change validated variables values
+data <- data %>% 
+  mutate(validated = !is.na(validated)) %>% 
+  mutate(validated = replace(validated, validated == "FALSE", 0)) %>% 
+  mutate(validated = replace(validated, validated == "TRUE", 1))
+```
+
+
+Now I'll move onto building a logistic regression model to measure an individual's likelihood of voting. I'll do this using two sets of variables:
+
+* Perry-Gallup index
+* Perry-Gallup index + all variables potentially related to turnout
+
+I will also be considering a model that includes variables typically included in structural election forecasting models, but while I am just using the 2016 data I cannot do this. Note that I made an age adjustment in the previous section but I do not consider age when I run the model that strictly considers questions that form the Perry-Gallup index.
+
+## Perry-Gallup index
+
+### Building model
+
+```{r, warning = FALSE, message = FALSE}
+# split data into training and test sets
+set.seed(16)
+train <- data %>% sample_frac(0.7)
+test <- data %>% anti_join(train, by = "ID")
+
+# exclude Rs who weren't asked these questions in train...
+train <- train[train$vote12 < 8,] 
+train <- train[train$intent < 8,]
+train <- train[train$interest < 8,]
+
+# ... and test
+test <- test[test$vote12 < 8,] 
+test <- test[test$intent < 8,]
+test <- test[test$interest < 8,]
+
+# recode vote12 so that we capture whether someone voted or not and not for who for train...
+train$vote12[train$vote12 == 1 | train$vote12 == 2 | train$vote12 == 3] <- 1
+train$vote12[train$vote12 == 4 | train$vote12 == 5] <- 2
+
+# ... and test
+test$vote12[test$vote12 == 1 | test$vote12 == 2 | test$vote12 == 3] <- 1
+test$vote12[test$vote12 == 4 | test$vote12 == 5] <- 2
+
+# run model
+formula <- as.formula(as.factor(validated) ~ as.factor(vote12) + as.factor(intent) + as.factor(interest))
+model <- glm(formula, data = train, family = "binomial")
+
+# apply the model to test data
+predictions <- model %>% 
+  broom::augment(newdata = test) %>% 
+  as_tibble() %>% 
+  mutate(p_hat = 1/(1 + exp(-.fitted)))
+```
+
+### Individual-level turnout
+
+```{r, echo = FALSE, warning = FALSE}
+ggplot(predictions) +
+  geom_histogram(aes(x = p_hat), position = "identity", bins = 20) +
+  coord_cartesian(xlim = c(0, 1)) +
+  labs(title = paste0("Predicted vote propensity scores for 2016 CCES holdout sample (N = ",
+                      nrow(predictions), ")", sep = ""),
+       x = "Vote propensity score")
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# consider turnout rates from 0.01 to 0.99 by 1
+turnout_rates <- seq(from = 0.01, to = .99, by = 0.01)
+
+# calculate true positive and negative rates for each level of turnout
+validation_by_logreg <- function(turnout){
+  willvote <- predictions %>% 
+    arrange(desc(p_hat)) %>% 
+    top_n(round(nrow(predictions)*turnout,0))
+  wontvote <- predictions %>% 
+    anti_join(willvote, by = "ID")
+
+  pred_voters <- willvote %>% 
+    count(validated = (validated == 1)) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  pred_nonvoters <- wontvote %>% 
+    count(validated = (validated == 1)) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+    rename(voters = percent_v, nonvoters = percent_nv)
+}
+
+true_pos_neg_rates_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- validation_by_logreg(turnout_rates[i])
+   true_pos_neg_rates_by_turnout[i,1] <- temp$voters[temp$validated=="Yes"]
+   true_pos_neg_rates_by_turnout[i,2] <- temp$nonvoters[temp$validated=="No"]
+   true_pos_neg_rates_by_turnout[i,3] <- i
+   i = i +1
+}
+
+# plot lines for the two rates
+true_pos_neg_rates_by_turnout %>% 
+  rename(true_positive = V1, true_negative = V2, i = V3) %>% 
+  ggplot() +
+  geom_line(aes(x = turnout_rates[i]*100, y = true_positive, colour = "True positive")) +
+  geom_line(aes(x = turnout_rates[i]*100, y = true_negative,  colour = "True negative")) +
+  #geom_vline(xintercept = 0.602*100, lty = 2) + (actual turnout rate for 2016 presidential election)
+  labs(title = "True positive and true negative rates for holdout sample",
+       x = "Turnout rate (%)",
+       y = "")
+```
+
+As we consider a larger turnout rate, our true negative rate (rate that nonvoters get predicted to be nonvoters) goes up while our true positive rate (rate at which voters get predicted to be voters) goes down. This makes sense. 
+
+What's trickier is figuring out where to strike the right balance between the two rates. To do this, we also need to look at the election predictions that likely voter models using different turnout rates produce.
+
+
+### Election predictions
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+vote_choice_logreg <- function(turnout){
+  predictions %>% 
+  arrange(desc(p_hat)) %>% 
+  top_n(round(nrow(predictions)*turnout,0)) %>% 
+  filter(choice %in% c(1,2) | earlychoice %in% c(1,2)) %>% 
+  mutate(choice = replace(choice, choice == 1, "Trump")) %>% 
+  mutate(choice = replace(choice, choice == 2, "Clinton")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+margin_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- vote_choice_logreg(turnout_rates[i])
+   margin_by_turnout[i,1] <- temp$vote_share[temp$choice=="Clinton"] - temp$vote_share[temp$choice=="Trump"]
+   margin_by_turnout[i,2] <- i
+   i = i +1
+}
+
+margin_by_turnout %>% 
+  rename(margin = V1, i = V2) %>% 
+  ggplot() +
+  geom_smooth(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.75, se = FALSE) +
+  geom_point(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.25) +
+  geom_hline(yintercept = 2.1, lty = 2, col = "red") +
+  #coord_cartesian(xlim = c(25, 100)) +
+  labs(title = "Clinton's predicted margin of victory computed from holdput sample",
+       x = "Turnout (%)",
+       y = "Clinton's predicted margin of victory")
+```
+
+This does not fit with what I would have believed before - I would have guessed, based on the findings of the other models, that more likely voters would have voted overwhelmingly for Clinton. Maybe what this model is contrary to all those findings (which is OK). This suggests that using a likely voter model with a turnout rate between 2% and 54% would have nearly perfectly predicted the final margin. Note: dots are predicted margins for each turnout rate while the blue line is a LOESS smoothed line fit to the points.
+
+## Perry-Gallup + all variables potentially related to turnout
+
+I will essentially repeat the process from above, but now the logistic regression model will consider *11* demographic variables that literature on voter turnout has suggested are correlated to turnout. Those variables are:
+
+* Gender
+* Age
+* Race
+* Education
+* Family income
+* Partisan/ideological strength
+* Religiosity
+* ~~Racial composition of district~~ **Not available on CCES**
+* Marital status
+* Residential mobility
+* Political interest/activism
+
+Note that this list should not be viewed as comprehensive - it reflects the research that I conducted for this project and it is possible that I have missed potentially important variables.
+
+### Building model
+
+```{r, warning = FALSE, include = FALSE}
+# split data into training and test sets
+set.seed(16)
+train <- data %>% sample_frac(0.7)
+test <- data %>% anti_join(train, by = "ID")
+
+# run model
+formula <- as.formula(validated ~ vote12 + intent + interest + age) #ADD MORE!!!!!!!!!
+model <- glm(formula, data = train, family = "binomial")
+
+# apply the model to test data
+predictions <- model %>% 
+  broom::augment(newdata = test) %>% 
+  as_tibble() %>% 
+  mutate(p_hat = 1/(1 + exp(-.fitted)))
+```
+
+### Individual-level turnout
+
+```{r, echo = FALSE, warning = FALSE, include = FALSE}
+ggplot(predictions) +
+  geom_histogram(aes(x = p_hat), position = "identity", bins = 30) +
+  coord_cartesian(xlim = c(0, 1)) +
+  labs(title = paste0("Predicted vote propensity scores for 2016 CCES holdout sample (N = ",
+                      nrow(predictions), ")", sep = ""),
+       x = "Vote propensity score")
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE, include = FALSE}
+# consider turnout rates from 0.01 to 0.99 by 1
+turnout_rates <- seq(from = 0.01, to = .99, by = 0.01)
+
+# calculate true positive and negative rates for each level of turnout
+validation_by_logreg <- function(turnout){
+  willvote <- predictions %>% 
+    arrange(desc(p_hat)) %>% 
+    top_n(round(nrow(predictions)*turnout,0))
+  wontvote <- predictions %>% 
+    anti_join(willvote, by = "ID")
+
+  pred_voters <- willvote %>% 
+    count(validated = (validated == 1)) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  pred_nonvoters <- wontvote %>% 
+    count(validated = (validated == 1)) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+    rename(voters = percent_v, nonvoters = percent_nv)
+}
+
+true_pos_neg_rates_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- validation_by_logreg(turnout_rates[i])
+   true_pos_neg_rates_by_turnout[i,1] <- temp$voters[temp$validated=="Yes"]
+   true_pos_neg_rates_by_turnout[i,2] <- temp$nonvoters[temp$validated=="No"]
+   true_pos_neg_rates_by_turnout[i,3] <- i
+   i = i +1
+}
+
+# plot lines for the two rates
+true_pos_neg_rates_by_turnout %>% 
+  rename(true_positive = V1, true_negative = V2, i = V3) %>% 
+  ggplot() +
+  geom_line(aes(x = turnout_rates[i]*100, y = true_positive, colour = "True positive")) +
+  geom_line(aes(x = turnout_rates[i]*100, y = true_negative,  colour = "True negative")) +
+  #geom_vline(xintercept = 0.602*100, lty = 2) + (actual turnout rate for 2016 presidential election)
+  labs(title = "True positive and true negative rates for holdout sample",
+       x = "Turnout rate (%)",
+       y = "")
+```
+
+
+
+### Election predictions
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, include = FALSE}
+vote_choice_logreg <- function(turnout){
+  predictions %>% 
+  arrange(desc(p_hat)) %>% 
+  top_n(round(nrow(predictions)*turnout,0)) %>% 
+  filter(choice %in% c(1,2) | earlychoice %in% c(1,2)) %>% 
+  mutate(choice = replace(choice, choice == 1, "Trump")) %>% 
+  mutate(choice = replace(choice, choice == 2, "Clinton")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+margin_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- vote_choice_logreg(turnout_rates[i])
+   margin_by_turnout[i,1] <- temp$vote_share[temp$choice=="Clinton"] - temp$vote_share[temp$choice=="Trump"]
+   margin_by_turnout[i,2] <- i
+   i = i +1
+}
+
+margin_by_turnout %>% 
+  rename(margin = V1, i = V2) %>% 
+  ggplot() +
+  geom_smooth(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.75, se = FALSE) +
+  geom_point(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.25) +
+  geom_hline(yintercept = 2.1, lty = 2, col = "red") +
+  coord_cartesian(xlim = c(25, 100)) +
+  labs(title = "Clinton's predicted margin of victory computed from holdput sample",
+       x = "Turnout (%)",
+       y = "Clinton's predicted margin of victory")
+```
+
+
+# Random Forests
