@@ -601,7 +601,7 @@ df %>%
 # Logistic regression
 
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo = FALSE}
 data <- cces16 %>% select(V101, state_abbreviation, CC16_364b, CC16_364c,  
                           CL_E2016GVM, commonweight, CC16_326, CC16_364, newsint, birthyr, gender,
                           racial_group, educ, faminc, pid7, pew_churatd, marstat, citylength_2,

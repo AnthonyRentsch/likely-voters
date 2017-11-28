@@ -418,46 +418,6 @@ data$perry_gallup[data$age &lt; 22 &amp;&amp; (data$vote12 == 4 | data$vote12 ==
 </div>
 <div id="logistic-regression" class="section level1">
 <h1>Logistic regression</h1>
-<pre class="r"><code>data &lt;- cces16 %&gt;% select(V101, state_abbreviation, CC16_364b, CC16_364c,  
-                          CL_E2016GVM, commonweight, CC16_326, CC16_364, newsint, birthyr, gender,
-                          racial_group, educ, faminc, pid7, pew_churatd, marstat, citylength_2,
-                          CC16_300b, CC16_300c, votereg) %&gt;% 
-  rename(ID = V101, state = state_abbreviation, earlychoice = CC16_364b, choice = CC16_364c, 
-         validated = CL_E2016GVM, weight = commonweight, vote12 = CC16_326, intent = CC16_364, 
-         interest = newsint, birthyr = birthyr, gender = gender, race = racial_group, education = educ,
-         income = faminc, partisanship = pid7, religiosity = pew_churatd, marital_status = marstat,
-         residential_mobility = citylength_2, watch_news = CC16_300b, read_paper = CC16_300c, 
-         registration = votereg) %&gt;% 
-  mutate(age = 2016 - birthyr) %&gt;% 
-  select(-birthyr)
-
-# merge vote choice for early/absentee voters and prospective voters
-data &lt;- data %&gt;% 
-  mutate(choice = replace(choice, earlychoice == 1, 1)) %&gt;% 
-  mutate(choice = replace(choice, earlychoice == 2, 2))
-
-# calculate Perry-Gallup index
-data &lt;- data %&gt;% mutate(perry_gallup = 0)
-
-# vote intent
-data$perry_gallup[data$intent == 1 | data$intent == 3] &lt;- data$perry_gallup + 2
-data$perry_gallup[data$intent == 2]  &lt;- data$perry_gallup + 1
-
-# vote history
-data$perry_gallup[data$vote12 == 1 | data$vote12 == 2 | data$vote12 == 3] &lt;- data$perry_gallup + 1
-
-# political interest
-data$perry_gallup[!is.na(data$interest) &amp;&amp; data$interest == 1] &lt;- data$perry_gallup + 2
-data$perry_gallup[!is.na(data$interest) &amp;&amp; data$interest == 2] &lt;- data$perry_gallup + 1
-
-# age adjustment
-data$perry_gallup[data$age &lt; 22 &amp;&amp; (data$vote12 == 4 | data$vote12 == 5 | 
-                                      data$vote12 == 8 | data$vote12 == 9)] &lt;- data$perry_gallup + 1
-# change validated variables values
-data &lt;- data %&gt;% 
-  mutate(validated = !is.na(validated)) %&gt;% 
-  mutate(validated = replace(validated, validated == &quot;FALSE&quot;, 0)) %&gt;% 
-  mutate(validated = replace(validated, validated == &quot;TRUE&quot;, 1))</code></pre>
 <p>Now I’ll move onto building a logistic regression model to measure an individual’s likelihood of voting. I’ll do this using two sets of variables:</p>
 <ul>
 <li>Perry-Gallup index</li>
