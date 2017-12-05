@@ -680,11 +680,22 @@ train$vote12[train$vote12 == 4 | train$vote12 == 5] <- 2
 test$vote12[test$vote12 == 1 | test$vote12 == 2 | test$vote12 == 3] <- 1
 test$vote12[test$vote12 == 4 | test$vote12 == 5] <- 2
 
+# recode interest to put 'Don't know' responses as 'Hardly at all'
+train$interest[train$interest == 7] <- 4
+test$interest[test$interest == 7] <- 4
+
+# set all categorical variables as factors
+train <- train %>% mutate(validated = as.factor(validated),
+                 intent = as.factor(intent),
+                 interest = as.factor(interest),
+                 registration = as.factor(registration))
+test <- test %>% mutate(validated = as.factor(validated),
+                 intent = as.factor(intent),
+                 interest = as.factor(interest),
+                 registration = as.factor(registration))
+
 # run model
-formula <- as.formula(as.factor(validated) ~ as.factor(vote12) + 
-                        as.factor(intent) + 
-                        as.factor(interest) + 
-                        as.factor(registration))
+formula <- as.formula(validated ~ vote12 + intent + interest + registration)
 model <- glm(formula, data = train, family = "binomial")
 
 # apply the model to test data
@@ -791,7 +802,6 @@ while(i <= length(turnout_rates)){
 margin_by_turnout %>% 
   rename(margin = V1, i = V2) %>% 
   ggplot() +
-  geom_smooth(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.75, se = FALSE) +
   geom_point(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.25) +
   geom_hline(yintercept = 2.1, lty = 2, col = "red") +
   #coord_cartesian(xlim = c(25, 100)) +
@@ -824,8 +834,8 @@ Note that this list should not be viewed as comprehensive - it reflects the rese
 
 ### Building model
 
-```{r, warning = FALSE, echo = FALSE}
-set.seed(11)
+```{r, warning = FALSE, echo = FALSE, message = FALSE}
+set.seed(17)
 train <- data %>% sample_frac(0.7)
 test <- data %>% anti_join(train, by = "ID")
 
@@ -833,9 +843,9 @@ test <- data %>% anti_join(train, by = "ID")
 train <- train[train$vote12 < 8,] 
 train <- train[train$intent < 8,]
 train <- train[train$interest < 8,]
-train <- train[train$income != 98,]
+train <- train[!train$income %in% c(98,99),]
 train <- train[!train$partisanship %in% c(8, 98, 99),]
-train <- train[!train$religiosity %in% c(8,9) & !is.na(train$religiosity),]
+train <- train[!train$religiosity %in% c(8,9,12) & !is.na(train$religiosity),]
 train <- train[!train$marital_status %in% c(8,9),]
 train <- train[!is.na(train$residential_mobility) & train$residential_mobility >= 0,]
 train <- train[!train$watch_news %in% c(8,9),]
@@ -845,9 +855,9 @@ train <- train[!train$read_paper %in% c(8,9),]
 test <- test[test$vote12 < 8,] 
 test <- test[test$intent < 8,]
 test <- test[test$interest < 8,]
-test <- test[test$income != 98,]
+test <- test[!test$income %in% c(98,99),]
 test <- test[!test$partisanship %in% c(8, 98, 99),]
-test <- test[!test$religiosity %in% c(8,9) & !is.na(test$religiosity),]
+test <- test[!test$religiosity %in% c(8,9,12) & !is.na(test$religiosity),]
 test <- test[!test$marital_status %in% c(8,9),]
 test <- test[!is.na(test$residential_mobility) & test$residential_mobility >= 0,]
 test <- test[!test$watch_news %in% c(8,9),]
@@ -872,83 +882,137 @@ test$partisan_strength[test$partisanship %in% c(1,7)] <- 1 #very strong
 test$partisan_strength[test$partisanship %in% c(2,6)] <- 2 #strong
 test$partisan_strength[test$partisanship %in% c(3,5)] <- 3 #moderate
 test$partisan_strength[test$partisanship == 4] <- 4 #weak
+
+# recode interest to put 'Don't know' responses as 'Hardly at all'
+train$interest[train$interest == 7] <- 4
+test$interest[test$interest == 7] <- 4
+
+# recode income for train...
+train$income_new[train$income %in% c(1,2,3,4)] <- 1 #under 40k
+train$income_new[train$income %in% c(5,6,7,8,9)] <- 2 #40 to 10k
+train$income_new[train$income %in% c(10,11,12,13,14,15,16,31,32)] <- 3 #over 100k
+train$income_new[train$income == 97] <- 4 #prefer not to say
+
+# ... and test
+test$income_new[test$income %in% c(1,2,3,4)] <- 1 #under 40k
+test$income_new[test$income %in% c(5,6,7,8,9)] <- 2 #40 to 10k
+test$income_new[test$income %in% c(10,11,12,13,14,15,16,31,32)] <- 3 #over 100k
+test$income_new[test$income == 97] <- 4 #prefer not to say
+
+# recode race
+train$race[train$race %in% c(7,8)] <- 6 #send Middle Eastern and Mixed to Other
+test$race[test$race %in% c(7,8)] <- 6
+
+# recode marital status
+train$marital_status[train$marital_status %in% c(2,3,4,6)] <- 3 #other
+train$marital_status[train$marital_status == 5] <- 2 #single
+test$marital_status[test$marital_status %in% c(2,3,4,6)] <- 3 #other
+test$marital_status[test$marital_status == 5] <- 2 #single
+
+# set all categorical variables as factors
+train <- train %>% mutate(validated = as.factor(validated),
+                 intent = as.factor(intent),
+                 interest = as.factor(interest),
+                 registration = as.factor(registration),
+                 gender = as.factor(gender),
+                 race = as.factor(race),
+                 education = as.factor(education),
+                 income_new = as.factor(income_new),
+                 partisan_strength = as.factor(partisan_strength),
+                 religiosity = as.factor(religiosity),
+                 marital_status = as.factor(marital_status),
+                 watch_news = as.factor(watch_news),
+                 read_paper = as.factor(read_paper))
+
+test <- test %>% mutate(validated = as.factor(validated),
+                 intent = as.factor(intent),
+                 interest = as.factor(interest),
+                 registration = as.factor(registration),
+                 gender = as.factor(gender),
+                 race = as.factor(race),
+                 education = as.factor(education),
+                 income_new = as.factor(income_new),
+                 partisan_strength = as.factor(partisan_strength),
+                 religiosity = as.factor(religiosity),
+                 marital_status = as.factor(marital_status),
+                 watch_news = as.factor(watch_news),
+                 read_paper = as.factor(read_paper))
 ```
 
 ```{r, warning = FALSE, message = FALSE}
 # run model
-formula <- as.formula(as.factor(validated) ~ as.factor(vote12) + 
-                        as.factor(intent) + 
-                        as.factor(interest) +
-                        as.factor(registration) +
-                        as.factor(gender) +
-                        age +
-                        as.factor(race) +
-                        as.factor(education) +
-                        as.factor(income) +
-                        as.factor(partisan_strength) +
-                        as.factor(religiosity) +
-                        as.factor(marital_status) +
-                        residential_mobility +
-                        as.factor(watch_news) +
-                        as.factor(read_paper))
+formula <- as.formula(validated ~ vote12 + intent + interest + registration + gender + age + race + 
+                        education + income_new + partisan_strength + religiosity + marital_status +
+                        residential_mobility + watch_news + read_paper)
 model <- glm(formula, data = train, family = "binomial")
 
 # apply the model to test data
-# predictions <- model %>%
-#   broom::augment(newdata = test) %>% 
-#   as_tibble() %>% 
-#   mutate(p_hat = 1/(1 + exp(-.fitted)))
+predictions <- model %>%
+  broom::augment(newdata = test) %>%
+  as_tibble() %>%
+  mutate(p_hat = 1/(1 + exp(-.fitted)))
 ```
 
 ### Individual-level turnout
 
-```{r, echo = FALSE, warning = FALSE, include = FALSE}
-# ggplot(predictions) +
-#   geom_histogram(aes(x = p_hat), position = "identity", bins = 30) +
-#   coord_cartesian(xlim = c(0, 1)) +
-#   labs(title = paste0("Predicted vote propensity scores for 2016 CCES holdout sample (N = ",
-#                       nrow(predictions), ")", sep = ""),
-#        x = "Vote propensity score")
+```{r, echo = FALSE, warning = FALSE}
+ggplot(predictions) +
+  geom_histogram(aes(x = p_hat), position = "identity", bins = 30) +
+  coord_cartesian(xlim = c(0, 1)) +
+  labs(title = paste0("Predicted vote propensity scores for 2016 CCES holdout sample (N = ",
+                      nrow(predictions), ")", sep = ""),
+       x = "Vote propensity score")
 ```
 
-```{r, echo = FALSE, warning = FALSE, message = FALSE, include = FALSE}
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+true_pos_neg_rates_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- validation_by_logreg(turnout_rates[i])
+   true_pos_neg_rates_by_turnout[i,1] <- temp$voters[temp$validated=="Yes"]
+   true_pos_neg_rates_by_turnout[i,2] <- temp$nonvoters[temp$validated=="No"]
+   true_pos_neg_rates_by_turnout[i,3] <- i
+   i = i +1
+}
+
 # plot lines for the two rates
-# true_pos_neg_rates_by_turnout %>% 
-#   rename(true_positive = V1, true_negative = V2, i = V3) %>% 
-#   ggplot() +
-#   geom_line(aes(x = turnout_rates[i]*100, y = true_positive, colour = "True positive")) +
-#   geom_line(aes(x = turnout_rates[i]*100, y = true_negative,  colour = "True negative")) +
-#   #geom_vline(xintercept = 0.602*100, lty = 2) + (actual turnout rate for 2016 presidential election)
-#   labs(title = "True positive and true negative rates for holdout sample",
-#        x = "Turnout rate (%)",
-#        y = "")
+true_pos_neg_rates_by_turnout %>%
+  rename(true_positive = V1, true_negative = V2, i = V3) %>%
+  ggplot() +
+  geom_line(aes(x = turnout_rates[i]*100, y = true_positive, colour = "True positive")) +
+  geom_line(aes(x = turnout_rates[i]*100, y = true_negative,  colour = "True negative")) +
+  #geom_vline(xintercept = 0.602*100, lty = 2) + (actual turnout rate for 2016 presidential election)
+  labs(title = "True positive and true negative rates for holdout sample",
+       x = "Turnout rate (%)",
+       y = "",
+       colour = "Type")
 ```
 
 
 
 ### Election predictions
 
-```{r, echo = FALSE, message = FALSE, warning = FALSE, include = FALSE}
-# margin_by_turnout <- data.frame()
-# i <- 1
-# while(i <= length(turnout_rates)){
-#    temp <- vote_choice_logreg(turnout_rates[i])
-#    margin_by_turnout[i,1] <- temp$vote_share[temp$choice=="Clinton"] - temp$vote_share[temp$choice=="Trump"]
-#    margin_by_turnout[i,2] <- i
-#    i = i +1
-# }
-# 
-# margin_by_turnout %>% 
-#   rename(margin = V1, i = V2) %>% 
-#   ggplot() +
-#   geom_smooth(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.75, se = FALSE) +
-#   geom_point(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.25) +
-#   geom_hline(yintercept = 2.1, lty = 2, col = "red") +
-#   coord_cartesian(xlim = c(25, 100)) +
-#   labs(title = "Clinton's predicted margin of victory computed from holdput sample",
-#        x = "Turnout (%)",
-#        y = "Clinton's predicted margin of victory")
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+margin_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- vote_choice_logreg(turnout_rates[i])
+   margin_by_turnout[i,1] <- temp$vote_share[temp$choice=="Clinton"] - temp$vote_share[temp$choice=="Trump"]
+   margin_by_turnout[i,2] <- i
+   i = i +1
+}
+
+margin_by_turnout %>%
+  rename(margin = V1, i = V2) %>%
+  ggplot() +
+  geom_point(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.25) +
+  geom_hline(yintercept = 2.1, lty = 2, col = "red") +
+  coord_cartesian(xlim = c(25, 100)) +
+  labs(title = "Clinton's predicted margin of victory computed from holdput sample",
+       x = "Turnout (%)",
+       y = "Clinton's predicted margin of victory")
 ```
 
+Using this model, most accurate prediction would have been given using a **really** low turnout rate - 33%.
 
 # Random Forests
