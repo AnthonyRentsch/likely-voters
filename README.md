@@ -13,7 +13,7 @@ The thesis project is being completed during the 2017-2018 academic year to sati
 
 `load.R` - Read in, clean, and pool data from CCES. Read in Catalist data.
 
-`raw-vote-intent.R` - Look at how self-reported voting intentions changed among different racial groups between 2012 and 2016.
+`raw-vote-intent.R` - Script where I look at how self-reported voting intentions changed among different racial groups between 2012 and 2016.
 
 `cutoff_models.Rmd` - Markdown file where I create/define cutoff likely voter models and evaluate their performance on an individual level and use them to make election predictions. View the output [here](http://htmlpreview.github.io/?https://github.com/AnthonyRentsch/thesis_LikelyVoters/blob/master/cutoff_models.html).
 
