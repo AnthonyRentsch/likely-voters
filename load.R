@@ -9,6 +9,7 @@ library(tidyr)
 library(dplyr)
 library(reshape2)
 library(caret)
+library(broom)
 
 #upload CCES data
 cces16 <- read_tsv(file = "/Users/anthonyrentsch/Desktop/UMass/thesis/data/CCES16_Common_OUTPUT_Jul2017_VV.tab",

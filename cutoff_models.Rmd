@@ -1,6 +1,6 @@
 ---
 title: "Cutoff Models"
-date: "2017-12-04"
+date: "December 13, 2017"
 output:
   html_document:
     toc: true
@@ -696,7 +696,7 @@ test <- test %>% mutate(validated = as.factor(validated),
 
 # run model
 formula <- as.formula(validated ~ vote12 + intent + interest + registration)
-model <- glm(formula, data = train, family = "binomial")
+model <- glm(formula, data = train, weights = train$weight ,family = "binomial")
 
 # apply the model to test data
 predictions <- model %>% 
@@ -779,8 +779,7 @@ What's trickier is figuring out where to strike the right balance between the tw
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
 vote_choice_logreg <- function(turnout){
   predictions %>% 
-  arrange(desc(p_hat)) %>% 
-  top_n(round(nrow(predictions)*turnout,0)) %>% 
+  top_n(round(nrow(predictions)*turnout,0), wt = p_hat) %>% 
   filter(choice %in% c(1,2) | earlychoice %in% c(1,2)) %>% 
   mutate(choice = replace(choice, choice == 1, "Trump")) %>% 
   mutate(choice = replace(choice, choice == 2, "Clinton")) %>% 
@@ -944,13 +943,19 @@ test <- test %>% mutate(validated = as.factor(validated),
 formula <- as.formula(validated ~ vote12 + intent + interest + registration + gender + age + race + 
                         education + income_new + partisan_strength + religiosity + marital_status +
                         residential_mobility + watch_news + read_paper)
-model <- glm(formula, data = train, family = "binomial")
+model <- glm(formula, data = train, weights = train$weight, family = "binomial")
 
 # apply the model to test data
 predictions <- model %>%
   broom::augment(newdata = test) %>%
   as_tibble() %>%
   mutate(p_hat = 1/(1 + exp(-.fitted)))
+```
+
+### Coefficients of model
+
+```{r}
+tidy(model) %>% knitr::kable(digits = 3)
 ```
 
 ### Individual-level turnout
@@ -965,6 +970,35 @@ ggplot(predictions) +
 ```
 
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# consider turnout rates from 0.01 to 0.99 by 1
+turnout_rates <- seq(from = 0.01, to = .99, by = 0.01)
+
+# calculate true positive and negative rates for each level of turnout
+validation_by_logreg <- function(turnout){
+  willvote <- predictions %>% 
+    arrange(desc(p_hat)) %>% 
+    top_n(round(nrow(predictions)*turnout,0))
+  wontvote <- predictions %>% 
+    anti_join(willvote, by = "ID")
+
+  pred_voters <- willvote %>% 
+    count(validated = (validated == 1)) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  pred_nonvoters <- wontvote %>% 
+    count(validated = (validated == 1)) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+    rename(voters = percent_v, nonvoters = percent_nv)
+}
+
 true_pos_neg_rates_by_turnout <- data.frame()
 i <- 1
 while(i <= length(turnout_rates)){
@@ -993,6 +1027,18 @@ true_pos_neg_rates_by_turnout %>%
 ### Election predictions
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
+vote_choice_logreg <- function(turnout){
+  predictions %>% 
+  top_n(round(nrow(predictions)*turnout,0), wt = p_hat) %>% 
+  filter(choice %in% c(1,2) | earlychoice %in% c(1,2)) %>% 
+  mutate(choice = replace(choice, choice == 1, "Trump")) %>% 
+  mutate(choice = replace(choice, choice == 2, "Clinton")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
 margin_by_turnout <- data.frame()
 i <- 1
 while(i <= length(turnout_rates)){
@@ -1013,6 +1059,106 @@ margin_by_turnout %>%
        y = "Clinton's predicted margin of victory")
 ```
 
-Using this model, most accurate prediction would have been given using a **really** low turnout rate - 33%.
+Using this model, most accurate prediction would have been given using a **really** low turnout rate - 33%. This is also concerning because it suggests adding more information makes this predictions considerably worse. 
+
+One thing to think about is that here I am training a model on information that a pollster would not have at the time of polling. In order to make this more realistic I would need to train this on prior voting history, not the validated vote for the election that hasn't happened yet.
+
+Note that in both logistic regression models I consider I use the weights twice - I run a weighted logistic regression and then I calculate the weighted sums of the number of respondents who say they will vote for each candidate to calculate the vote shares. Doing this did not change the results considerably from using the weights once (either to just run a weighted regression or to calculate the weighted vote shares).
 
 # Random Forests
+
+For random forests, I'll employ a similar approach as I did for logistic regression - building a classification random forest model to measure an individual's likelihood of voting. I'll do this using two sets of variables:
+
+* Perry-Gallup index
+* Perry-Gallup index + all variables potentially related to turnout
+
+I will also be considering a model that includes variables typically included in structural election forecasting models, but while I am just using the 2016 data I cannot do this. Note that I made an age adjustment in the previous section but I do not consider age when I run the model that strictly considers questions that form the Perry-Gallup index.
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+data <- cces16 %>% select(V101, state_abbreviation, CC16_364b, CC16_364c,  
+                          CL_E2016GVM, commonweight, CC16_326, CC16_364, newsint, birthyr, gender,
+                          racial_group, educ, faminc, pid7, pew_churatd, marstat, citylength_2,
+                          CC16_300b, CC16_300c, votereg) %>% 
+  rename(ID = V101, state = state_abbreviation, earlychoice = CC16_364b, choice = CC16_364c, 
+         validated = CL_E2016GVM, weight = commonweight, vote12 = CC16_326, intent = CC16_364, 
+         interest = newsint, birthyr = birthyr, gender = gender, race = racial_group, education = educ,
+         income = faminc, partisanship = pid7, religiosity = pew_churatd, marital_status = marstat,
+         residential_mobility = citylength_2, watch_news = CC16_300b, read_paper = CC16_300c, 
+         registration = votereg) %>% 
+  mutate(age = 2016 - birthyr) %>% 
+  select(-birthyr)
+
+# merge vote choice for early/absentee voters and prospective voters
+data <- data %>% 
+  mutate(choice = replace(choice, earlychoice == 1, 1)) %>% 
+  mutate(choice = replace(choice, earlychoice == 2, 2))
+
+# calculate Perry-Gallup index
+data <- data %>% mutate(perry_gallup = 0)
+
+# vote intent
+data$perry_gallup[data$intent == 1 | data$intent == 3] <- data$perry_gallup + 2
+data$perry_gallup[data$intent == 2]  <- data$perry_gallup + 1
+
+# vote history
+data$perry_gallup[data$vote12 == 1 | data$vote12 == 2 | data$vote12 == 3] <- data$perry_gallup + 1
+
+# political interest
+data$perry_gallup[!is.na(data$interest) && data$interest == 1] <- data$perry_gallup + 2
+data$perry_gallup[!is.na(data$interest) && data$interest == 2] <- data$perry_gallup + 1
+
+# age adjustment
+data$perry_gallup[data$age < 22 && (data$vote12 == 4 | data$vote12 == 5 | 
+                                      data$vote12 == 8 | data$vote12 == 9)] <- data$perry_gallup + 1
+# change validated variables values
+data <- data %>% 
+  mutate(validated = !is.na(validated)) %>% 
+  mutate(validated = replace(validated, validated == "FALSE", 0)) %>% 
+  mutate(validated = replace(validated, validated == "TRUE", 1))
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# split data into training and test sets
+set.seed(16)
+train <- data %>% sample_frac(0.7)
+test <- data %>% anti_join(train, by = "ID")
+
+# exclude Rs who weren't asked these questions in train...
+train <- train[train$vote12 < 8,] 
+train <- train[train$intent < 8,]
+train <- train[train$interest < 8,]
+
+# ... and test
+test <- test[test$vote12 < 8,] 
+test <- test[test$intent < 8,]
+test <- test[test$interest < 8,]
+
+# recode vote12 so that we capture whether someone voted or not and not for who for train...
+train$vote12[train$vote12 == 1 | train$vote12 == 2 | train$vote12 == 3] <- 1
+train$vote12[train$vote12 == 4 | train$vote12 == 5] <- 2
+
+# ... and test
+test$vote12[test$vote12 == 1 | test$vote12 == 2 | test$vote12 == 3] <- 1
+test$vote12[test$vote12 == 4 | test$vote12 == 5] <- 2
+
+# recode interest to put 'Don't know' responses as 'Hardly at all'
+train$interest[train$interest == 7] <- 4
+test$interest[test$interest == 7] <- 4
+
+# set all categorical variables as factors
+train <- train %>% mutate(validated = as.factor(validated),
+                 intent = as.factor(intent),
+                 interest = as.factor(interest),
+                 registration = as.factor(registration))
+test <- test %>% mutate(validated = as.factor(validated),
+                 intent = as.factor(intent),
+                 interest = as.factor(interest),
+                 registration = as.factor(registration))
+
+# run model
+
+
+# apply the model to test data
+
+```
+
