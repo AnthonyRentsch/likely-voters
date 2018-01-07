@@ -1,6 +1,6 @@
 ---
 title: "Cutoff Models"
-date: "December 13, 2017"
+date: "January 7, 2018"
 output:
   html_document:
     toc: true
@@ -695,21 +695,20 @@ test <- test %>% mutate(validated = as.factor(validated),
                  registration = as.factor(registration))
 
 # run model
+svy.train <- svydesign(ids = ~ 1, data = train, weights = ~weight)
 formula <- as.formula(validated ~ vote12 + intent + interest + registration)
-model <- glm(formula, data = train, weights = train$weight ,family = "binomial")
+model <- svyglm(formula, design = svy.train, family = binomial)
 
 # apply the model to test data
-predictions <- model %>% 
-  broom::augment(newdata = test) %>% 
-  as_tibble() %>% 
-  mutate(p_hat = 1/(1 + exp(-.fitted)))
+predictions <- cbind(test, predict(model, newdata = test, type = "response"))
+predictions <- as.data.frame(predictions)
 ```
 
 ### Individual-level turnout
 
 ```{r, echo = FALSE, warning = FALSE}
 ggplot(predictions) +
-  geom_histogram(aes(x = p_hat), position = "identity", bins = 20) +
+  geom_histogram(aes(x = response), position = "identity", bins = 20) +
   coord_cartesian(xlim = c(0, 1)) +
   labs(title = paste0("Predicted vote propensity scores for 2016 CCES holdout sample (N = ",
                       nrow(predictions), ")", sep = ""),
@@ -723,7 +722,7 @@ turnout_rates <- seq(from = 0.01, to = .99, by = 0.01)
 # calculate true positive and negative rates for each level of turnout
 validation_by_logreg <- function(turnout){
   willvote <- predictions %>% 
-    arrange(desc(p_hat)) %>% 
+    arrange(desc(response)) %>% 
     top_n(round(nrow(predictions)*turnout,0))
   wontvote <- predictions %>% 
     anti_join(willvote, by = "ID")
@@ -773,13 +772,15 @@ As we consider a larger turnout rate, our true negative rate (rate that nonvoter
 
 What's trickier is figuring out where to strike the right balance between the two rates. To do this, we also need to look at the election predictions that likely voter models using different turnout rates produce.
 
+Note that we use weights in two places - to construct a weighted logistic regression model to estimate vote propensity (using the `survey` package) and again to calculate a weighted vote share estimate.
+
 
 ### Election predictions
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
 vote_choice_logreg <- function(turnout){
   predictions %>% 
-  top_n(round(nrow(predictions)*turnout,0), wt = p_hat) %>% 
+  top_n(round(nrow(predictions)*turnout,0), wt = response) %>% 
   filter(choice %in% c(1,2) | earlychoice %in% c(1,2)) %>% 
   mutate(choice = replace(choice, choice == 1, "Trump")) %>% 
   mutate(choice = replace(choice, choice == 2, "Clinton")) %>% 
@@ -809,7 +810,9 @@ margin_by_turnout %>%
        y = "Clinton's predicted margin of victory")
 ```
 
-This does not fit with what I would have believed before - I would have guessed, based on the findings of the other models, that more likely voters would have voted overwhelmingly for Clinton. Maybe what this model is contrary to all those findings (which is OK). This suggests that using a likely voter model with a turnout rate between 2% and 54% would have *nearly* perfectly predicted the final margin. Note: dots are predicted margins for each turnout rate while the blue line is a LOESS smoothed line fit to the points.
+This does not fit with what I would have believed before - I would have guessed, based on the findings of the other models, that more likely voters would have voted overwhelmingly for Clinton, i.e. a lower turnout of just extremely likely voters would vote in favor of Clinton. 
+
+This suggests that using a likely voter model with a turnout rate between 2% and 57% would have *nearly* perfectly predicted the final margin.
 
 ## Perry-Gallup + all variables potentially related to turnout
 
@@ -943,18 +946,18 @@ test <- test %>% mutate(validated = as.factor(validated),
 formula <- as.formula(validated ~ vote12 + intent + interest + registration + gender + age + race + 
                         education + income_new + partisan_strength + religiosity + marital_status +
                         residential_mobility + watch_news + read_paper)
-model <- glm(formula, data = train, weights = train$weight, family = "binomial")
+
+svy.train <- svydesign(ids = ~ 1, data = train, weights = ~weight)
+model <- svyglm(formula, design = svy.train, family = binomial)
 
 # apply the model to test data
-predictions <- model %>%
-  broom::augment(newdata = test) %>%
-  as_tibble() %>%
-  mutate(p_hat = 1/(1 + exp(-.fitted)))
+predictions <- cbind(test, predict(model, newdata = test, type = "response"))
+predictions <- as.data.frame(predictions)
 ```
 
 ### Coefficients of model
 
-```{r}
+```{r, echo = FALSE}
 tidy(model) %>% knitr::kable(digits = 3)
 ```
 
@@ -962,7 +965,7 @@ tidy(model) %>% knitr::kable(digits = 3)
 
 ```{r, echo = FALSE, warning = FALSE}
 ggplot(predictions) +
-  geom_histogram(aes(x = p_hat), position = "identity", bins = 30) +
+  geom_histogram(aes(x = response), position = "identity", bins = 30) +
   coord_cartesian(xlim = c(0, 1)) +
   labs(title = paste0("Predicted vote propensity scores for 2016 CCES holdout sample (N = ",
                       nrow(predictions), ")", sep = ""),
@@ -976,7 +979,7 @@ turnout_rates <- seq(from = 0.01, to = .99, by = 0.01)
 # calculate true positive and negative rates for each level of turnout
 validation_by_logreg <- function(turnout){
   willvote <- predictions %>% 
-    arrange(desc(p_hat)) %>% 
+    arrange(desc(response)) %>% 
     top_n(round(nrow(predictions)*turnout,0))
   wontvote <- predictions %>% 
     anti_join(willvote, by = "ID")
@@ -1026,10 +1029,12 @@ true_pos_neg_rates_by_turnout %>%
 
 ### Election predictions
 
+Recall again that weights are used in two places - to construct the model and again to calculate estimates.
+
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
 vote_choice_logreg <- function(turnout){
   predictions %>% 
-  top_n(round(nrow(predictions)*turnout,0), wt = p_hat) %>% 
+  top_n(round(nrow(predictions)*turnout,0), wt = response) %>% 
   filter(choice %in% c(1,2) | earlychoice %in% c(1,2)) %>% 
   mutate(choice = replace(choice, choice == 1, "Trump")) %>% 
   mutate(choice = replace(choice, choice == 2, "Clinton")) %>% 
@@ -1053,17 +1058,17 @@ margin_by_turnout %>%
   ggplot() +
   geom_point(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.25) +
   geom_hline(yintercept = 2.1, lty = 2, col = "red") +
-  coord_cartesian(xlim = c(25, 100)) +
-  labs(title = "Clinton's predicted margin of victory computed from holdput sample",
+  coord_cartesian(xlim = c(0, 100)) +
+  labs(title = "Clinton's predicted margin of victory computed from holdout sample",
        x = "Turnout (%)",
        y = "Clinton's predicted margin of victory")
 ```
 
-Using this model, most accurate prediction would have been given using a **really** low turnout rate - 33%. This is also concerning because it suggests adding more information makes this predictions considerably worse. 
+Using this model, most accurate prediction would have been given using a **really** low turnout rate - 5%. This is also concerning because it suggests adding more information makes this predictions considerably worse. 
 
 One thing to think about is that here I am training a model on information that a pollster would not have at the time of polling. In order to make this more realistic I would need to train this on prior voting history, not the validated vote for the election that hasn't happened yet.
 
-Note that in both logistic regression models I consider I use the weights twice - I run a weighted logistic regression and then I calculate the weighted sums of the number of respondents who say they will vote for each candidate to calculate the vote shares. Doing this did not change the results considerably from using the weights once (either to just run a weighted regression or to calculate the weighted vote shares).
+One last time: recall that in both logistic regression models I consider I use the weights twice - I run a weighted logistic regression and then I calculate the weighted sums of the number of respondents who say they will vote for each candidate to calculate the vote shares. Doing this did not change the results considerably from using the weights once (either to just run a weighted regression or to calculate the weighted vote shares).
 
 # Random Forests
 
