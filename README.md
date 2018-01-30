@@ -6,7 +6,7 @@ The thesis project is being completed during the 2017-2018 academic year to sati
 
 # Data
 
-* Cooperative Congressional Election Study (CCES) surveys from 2008, 2012, and 2016. Find that data [here](https://cces.gov.harvard.edu/).
+* Cooperative Congressional Election Study (CCES) surveys from 2008, 2012, and 2016, as well as the cumulative file. Find that data [here](https://cces.gov.harvard.edu/).
 * Catalist turnout data (Professor Brian Schaffner has access to an academic subscription to Catalist, which he has generously allowed me use for this project).
 
 # Scripts
