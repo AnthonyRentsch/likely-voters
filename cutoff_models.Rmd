@@ -1,6 +1,6 @@
 ---
 title: "Cutoff Models"
-date: "January 7, 2018"
+date: "January 29, 2018"
 output:
   html_document:
     toc: true
@@ -642,6 +642,9 @@ data <- data %>%
   mutate(validated = !is.na(validated)) %>% 
   mutate(validated = replace(validated, validated == "FALSE", 0)) %>% 
   mutate(validated = replace(validated, validated == "TRUE", 1))
+
+# exclude rows that miscoded newsint variable in train
+data <- data[-which(data$interest == 6),]
 ```
 
 
@@ -686,10 +689,12 @@ test$interest[test$interest == 7] <- 4
 
 # set all categorical variables as factors
 train <- train %>% mutate(validated = as.factor(validated),
+                 vote12 = as.factor(vote12),
                  intent = as.factor(intent),
                  interest = as.factor(interest),
                  registration = as.factor(registration))
 test <- test %>% mutate(validated = as.factor(validated),
+                 vote12 = as.factor(vote12),
                  intent = as.factor(intent),
                  interest = as.factor(interest),
                  registration = as.factor(registration))
@@ -913,6 +918,7 @@ test$marital_status[test$marital_status == 5] <- 2 #single
 
 # set all categorical variables as factors
 train <- train %>% mutate(validated = as.factor(validated),
+                 vote12 = as.factor(vote12),
                  intent = as.factor(intent),
                  interest = as.factor(interest),
                  registration = as.factor(registration),
@@ -927,6 +933,7 @@ train <- train %>% mutate(validated = as.factor(validated),
                  read_paper = as.factor(read_paper))
 
 test <- test %>% mutate(validated = as.factor(validated),
+                 vote12 = as.factor(vote12),
                  intent = as.factor(intent),
                  interest = as.factor(interest),
                  registration = as.factor(registration),
@@ -1079,6 +1086,8 @@ For random forests, I'll employ a similar approach as I did for logistic regress
 
 I will also be considering a model that includes variables typically included in structural election forecasting models, but while I am just using the 2016 data I cannot do this. Note that I made an age adjustment in the previous section but I do not consider age when I run the model that strictly considers questions that form the Perry-Gallup index.
 
+## Perry- Gallup index
+
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
 data <- cces16 %>% select(V101, state_abbreviation, CC16_364b, CC16_364c,  
                           CL_E2016GVM, commonweight, CC16_326, CC16_364, newsint, birthyr, gender,
@@ -1120,6 +1129,9 @@ data <- data %>%
   mutate(validated = !is.na(validated)) %>% 
   mutate(validated = replace(validated, validated == "FALSE", 0)) %>% 
   mutate(validated = replace(validated, validated == "TRUE", 1))
+
+# exclude rows that miscoded newsint variable in train
+data <- data[-which(data$interest == 6),]
 ```
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
@@ -1152,18 +1164,386 @@ test$interest[test$interest == 7] <- 4
 
 # set all categorical variables as factors
 train <- train %>% mutate(validated = as.factor(validated),
+                 vote12 = as.factor(vote12),
                  intent = as.factor(intent),
                  interest = as.factor(interest),
                  registration = as.factor(registration))
 test <- test %>% mutate(validated = as.factor(validated),
+                 vote12 = as.factor(vote12),
                  intent = as.factor(intent),
                  interest = as.factor(interest),
                  registration = as.factor(registration))
 
 # run model
-
+formula <- as.formula(validated ~ vote12 + intent + interest + registration)
+rf.model <- randomForest(formula, data = train)
 
 # apply the model to test data
-
+predictions <- cbind(test, predict(rf.model, newdata = test, type = "prob"))
+predictions <- as.data.frame(predictions)
 ```
 
+### Individual-level turnout
+
+```{r, echo = FALSE, warning = FALSE}
+ggplot(predictions) +
+  geom_histogram(aes(x = `1`), position = "identity", bins = 20) +
+  coord_cartesian(xlim = c(0, 1)) +
+  labs(title = paste0("Predicted vote propensity scores for 2016 CCES holdout sample (N = ",
+                      nrow(predictions), ")", sep = ""),
+       x = "Vote propensity score")
+```
+
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# consider turnout rates from 0.01 to 0.99 by 1
+turnout_rates <- seq(from = 0.01, to = .99, by = 0.01)
+
+# calculate true positive and negative rates for each level of turnout
+validation_by_rf <- function(turnout){
+  willvote <- predictions %>% 
+    arrange(desc(`1`)) %>% 
+    top_n(round(nrow(predictions)*turnout,0))
+  wontvote <- predictions %>% 
+    anti_join(willvote, by = "ID")
+
+  pred_voters <- willvote %>% 
+    count(validated = (validated == 1)) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  pred_nonvoters <- wontvote %>% 
+    count(validated = (validated == 1)) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+    rename(voters = percent_v, nonvoters = percent_nv)
+}
+
+true_pos_neg_rates_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- validation_by_rf(turnout_rates[i])
+   true_pos_neg_rates_by_turnout[i,1] <- temp$voters[temp$validated=="Yes"]
+   true_pos_neg_rates_by_turnout[i,2] <- temp$nonvoters[temp$validated=="No"]
+   true_pos_neg_rates_by_turnout[i,3] <- i
+   i = i +1
+}
+
+# plot lines for the two rates
+true_pos_neg_rates_by_turnout %>% 
+  rename(true_positive = V1, true_negative = V2, i = V3) %>% 
+  ggplot() +
+  geom_line(aes(x = turnout_rates[i]*100, y = true_positive, colour = "True positive")) +
+  geom_line(aes(x = turnout_rates[i]*100, y = true_negative,  colour = "True negative")) +
+  #geom_vline(xintercept = 0.602*100, lty = 2) + (actual turnout rate for 2016 presidential election)
+  labs(title = "True positive and true negative rates for holdout sample",
+       x = "Turnout rate (%)",
+       y = "",
+       colour = "Type")
+```
+       
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+vote_choice_rf <- function(turnout){
+  predictions %>% 
+  top_n(round(nrow(predictions)*turnout,0), wt = `1`) %>% 
+  filter(choice %in% c(1,2) | earlychoice %in% c(1,2)) %>% 
+  mutate(choice = replace(choice, choice == 1, "Trump")) %>% 
+  mutate(choice = replace(choice, choice == 2, "Clinton")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+margin_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- vote_choice_rf(turnout_rates[i])
+   margin_by_turnout[i,1] <- temp$vote_share[temp$choice=="Clinton"] - temp$vote_share[temp$choice=="Trump"]
+   margin_by_turnout[i,2] <- i
+   i = i +1
+}
+
+margin_by_turnout %>%
+  rename(margin = V1, i = V2) %>%
+  ggplot() +
+  geom_point(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.25) +
+  geom_hline(yintercept = 2.1, lty = 2, col = "red") +
+  coord_cartesian(xlim = c(0, 100)) +
+  labs(title = "Clinton's predicted margin of victory computed from holdout sample",
+       x = "Turnout (%)",
+       y = "Clinton's predicted margin of victory")
+```
+
+## Perry-Gallup index + all variables potentially related to turnout
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+data <- cces16 %>% select(V101, state_abbreviation, CC16_364b, CC16_364c,  
+                          CL_E2016GVM, commonweight, CC16_326, CC16_364, newsint, birthyr, gender,
+                          racial_group, educ, faminc, pid7, pew_churatd, marstat, citylength_2,
+                          CC16_300b, CC16_300c, votereg) %>% 
+  rename(ID = V101, state = state_abbreviation, earlychoice = CC16_364b, choice = CC16_364c, 
+         validated = CL_E2016GVM, weight = commonweight, vote12 = CC16_326, intent = CC16_364, 
+         interest = newsint, birthyr = birthyr, gender = gender, race = racial_group, education = educ,
+         income = faminc, partisanship = pid7, religiosity = pew_churatd, marital_status = marstat,
+         residential_mobility = citylength_2, watch_news = CC16_300b, read_paper = CC16_300c, 
+         registration = votereg) %>% 
+  mutate(age = 2016 - birthyr) %>% 
+  select(-birthyr)
+
+# merge vote choice for early/absentee voters and prospective voters
+data <- data %>% 
+  mutate(choice = replace(choice, earlychoice == 1, 1)) %>% 
+  mutate(choice = replace(choice, earlychoice == 2, 2))
+
+# calculate Perry-Gallup index
+data <- data %>% mutate(perry_gallup = 0)
+
+# vote intent
+data$perry_gallup[data$intent == 1 | data$intent == 3] <- data$perry_gallup + 2
+data$perry_gallup[data$intent == 2]  <- data$perry_gallup + 1
+
+# vote history
+data$perry_gallup[data$vote12 == 1 | data$vote12 == 2 | data$vote12 == 3] <- data$perry_gallup + 1
+
+# political interest
+data$perry_gallup[!is.na(data$interest) && data$interest == 1] <- data$perry_gallup + 2
+data$perry_gallup[!is.na(data$interest) && data$interest == 2] <- data$perry_gallup + 1
+
+# age adjustment
+data$perry_gallup[data$age < 22 && (data$vote12 == 4 | data$vote12 == 5 | 
+                                      data$vote12 == 8 | data$vote12 == 9)] <- data$perry_gallup + 1
+# change validated variables values
+data <- data %>% 
+  mutate(validated = !is.na(validated)) %>% 
+  mutate(validated = replace(validated, validated == "FALSE", 0)) %>% 
+  mutate(validated = replace(validated, validated == "TRUE", 1))
+
+# exclude rows that miscoded newsint variable in train
+data <- data[-which(data$interest == 6),]
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# split data into training and test sets
+set.seed(16)
+train <- data %>% sample_frac(0.7)
+test <- data %>% anti_join(train, by = "ID")
+
+# exclude Rs who weren't asked these questions in train...
+train <- train[train$vote12 < 8,] 
+train <- train[train$intent < 8,]
+train <- train[train$interest < 8,]
+train <- train[!train$income %in% c(98,99),]
+train <- train[!train$partisanship %in% c(8, 98, 99),]
+train <- train[!train$religiosity %in% c(8,9,12) & !is.na(train$religiosity),]
+train <- train[!train$marital_status %in% c(8,9),]
+train <- train[!is.na(train$residential_mobility) & train$residential_mobility >= 0,]
+train <- train[!train$watch_news %in% c(8,9),]
+train <- train[!train$read_paper %in% c(8,9),]
+
+# ... and test
+test <- test[test$vote12 < 8,] 
+test <- test[test$intent < 8,]
+test <- test[test$interest < 8,]
+test <- test[!test$income %in% c(98,99),]
+test <- test[!test$partisanship %in% c(8, 98, 99),]
+test <- test[!test$religiosity %in% c(8,9,12) & !is.na(test$religiosity),]
+test <- test[!test$marital_status %in% c(8,9),]
+test <- test[!is.na(test$residential_mobility) & test$residential_mobility >= 0,]
+test <- test[!test$watch_news %in% c(8,9),]
+test <- test[!test$read_paper %in% c(8,9),]
+
+# recode vote12 so that we capture whether someone voted or not and not for who for train...
+train$vote12[train$vote12 == 1 | train$vote12 == 2 | train$vote12 == 3] <- 1
+train$vote12[train$vote12 == 4 | train$vote12 == 5] <- 2
+
+# ... and test
+test$vote12[test$vote12 == 1 | test$vote12 == 2 | test$vote12 == 3] <- 1
+test$vote12[test$vote12 == 4 | test$vote12 == 5] <- 2
+
+# recode partisanship to capture partisan strength rather than Democrat v. Republican for train...
+train$partisan_strength[train$partisanship %in% c(1,7)] <- 1 #very strong
+train$partisan_strength[train$partisanship %in% c(2,6)] <- 2 #strong
+train$partisan_strength[train$partisanship %in% c(3,5)] <- 3 #moderate
+train$partisan_strength[train$partisanship == 4] <- 4 #weak
+
+# ... and test
+test$partisan_strength[test$partisanship %in% c(1,7)] <- 1 #very strong
+test$partisan_strength[test$partisanship %in% c(2,6)] <- 2 #strong
+test$partisan_strength[test$partisanship %in% c(3,5)] <- 3 #moderate
+test$partisan_strength[test$partisanship == 4] <- 4 #weak
+
+# recode interest to put 'Don't know' responses as 'Hardly at all'
+train$interest[train$interest == 7] <- 4
+test$interest[test$interest == 7] <- 4
+
+# recode income for train...
+train$income_new[train$income %in% c(1,2,3,4)] <- 1 #under 40k
+train$income_new[train$income %in% c(5,6,7,8,9)] <- 2 #40 to 10k
+train$income_new[train$income %in% c(10,11,12,13,14,15,16,31,32)] <- 3 #over 100k
+train$income_new[train$income == 97] <- 4 #prefer not to say
+
+# ... and test
+test$income_new[test$income %in% c(1,2,3,4)] <- 1 #under 40k
+test$income_new[test$income %in% c(5,6,7,8,9)] <- 2 #40 to 10k
+test$income_new[test$income %in% c(10,11,12,13,14,15,16,31,32)] <- 3 #over 100k
+test$income_new[test$income == 97] <- 4 #prefer not to say
+
+# recode race
+train$race[train$race %in% c(7,8)] <- 6 #send Middle Eastern and Mixed to Other
+test$race[test$race %in% c(7,8)] <- 6
+
+# recode marital status
+train$marital_status[train$marital_status %in% c(2,3,4,6)] <- 3 #other
+train$marital_status[train$marital_status == 5] <- 2 #single
+test$marital_status[test$marital_status %in% c(2,3,4,6)] <- 3 #other
+test$marital_status[test$marital_status == 5] <- 2 #single
+
+# set all categorical variables as factors
+train <- train %>% mutate(validated = as.factor(validated),
+                 vote12 = as.factor(vote12),
+                 intent = as.factor(intent),
+                 interest = as.factor(interest),
+                 registration = as.factor(registration),
+                 gender = as.factor(gender),
+                 race = as.factor(race),
+                 education = as.factor(education),
+                 income_new = as.factor(income_new),
+                 partisan_strength = as.factor(partisan_strength),
+                 religiosity = as.factor(religiosity),
+                 marital_status = as.factor(marital_status),
+                 watch_news = as.factor(watch_news),
+                 read_paper = as.factor(read_paper))
+
+test <- test %>% mutate(validated = as.factor(validated),
+                 vote12 = as.factor(vote12),
+                 intent = as.factor(intent),
+                 interest = as.factor(interest),
+                 registration = as.factor(registration),
+                 gender = as.factor(gender),
+                 race = as.factor(race),
+                 education = as.factor(education),
+                 income_new = as.factor(income_new),
+                 partisan_strength = as.factor(partisan_strength),
+                 religiosity = as.factor(religiosity),
+                 marital_status = as.factor(marital_status),
+                 watch_news = as.factor(watch_news),
+                 read_paper = as.factor(read_paper))
+
+# run model
+formula <- as.formula(validated ~ vote12 + intent + interest + registration + 
+                        gender + age + race + education + income_new + 
+                        partisan_strength + religiosity + marital_status +
+                        residential_mobility + watch_news + read_paper)
+rf.model <- randomForest(formula, data = train)
+
+# apply the model to test data
+predictions <- cbind(test, predict(rf.model, newdata = test, type = "prob"))
+predictions <- as.data.frame(predictions)
+```
+
+### Individual-level turnout
+
+```{r, echo = FALSE, warning = FALSE}
+ggplot(predictions) +
+  geom_histogram(aes(x = `1`), position = "identity", bins = 20) +
+  coord_cartesian(xlim = c(0, 1)) +
+  labs(title = paste0("Predicted vote propensity scores for 2016 CCES holdout sample (N = ",
+                      nrow(predictions), ")", sep = ""),
+       x = "Vote propensity score")
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# consider turnout rates from 0.01 to 0.99 by 1
+turnout_rates <- seq(from = 0.01, to = .99, by = 0.01)
+
+# calculate true positive and negative rates for each level of turnout
+validation_by_rf <- function(turnout){
+  willvote <- predictions %>% 
+    arrange(desc(`1`)) %>% 
+    top_n(round(nrow(predictions)*turnout,0))
+  wontvote <- predictions %>% 
+    anti_join(willvote, by = "ID")
+
+  pred_voters <- willvote %>% 
+    count(validated = (validated == 1)) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  pred_nonvoters <- wontvote %>% 
+    count(validated = (validated == 1)) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+    rename(voters = percent_v, nonvoters = percent_nv)
+}
+
+true_pos_neg_rates_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- validation_by_rf(turnout_rates[i])
+   true_pos_neg_rates_by_turnout[i,1] <- temp$voters[temp$validated=="Yes"]
+   true_pos_neg_rates_by_turnout[i,2] <- temp$nonvoters[temp$validated=="No"]
+   true_pos_neg_rates_by_turnout[i,3] <- i
+   i = i +1
+}
+
+# plot lines for the two rates
+true_pos_neg_rates_by_turnout %>% 
+  rename(true_positive = V1, true_negative = V2, i = V3) %>% 
+  ggplot() +
+  geom_line(aes(x = turnout_rates[i]*100, y = true_positive, colour = "True positive")) +
+  geom_line(aes(x = turnout_rates[i]*100, y = true_negative,  colour = "True negative")) +
+  #geom_vline(xintercept = 0.602*100, lty = 2) + (actual turnout rate for 2016 presidential election)
+  labs(title = "True positive and true negative rates for holdout sample",
+       x = "Turnout rate (%)",
+       y = "",
+       colour = "Type")
+```
+
+
+### Election predictions
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+vote_choice_rf <- function(turnout){
+  predictions %>% 
+  top_n(round(nrow(predictions)*turnout,0), wt = `1`) %>% 
+  filter(choice %in% c(1,2) | earlychoice %in% c(1,2)) %>% 
+  mutate(choice = replace(choice, choice == 1, "Trump")) %>% 
+  mutate(choice = replace(choice, choice == 2, "Clinton")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+margin_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- vote_choice_rf(turnout_rates[i])
+   margin_by_turnout[i,1] <- temp$vote_share[temp$choice=="Clinton"] - temp$vote_share[temp$choice=="Trump"]
+   margin_by_turnout[i,2] <- i
+   i = i +1
+}
+
+margin_by_turnout %>%
+  rename(margin = V1, i = V2) %>%
+  ggplot() +
+  geom_point(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.25) +
+  geom_hline(yintercept = 2.1, lty = 2, col = "red") +
+  coord_cartesian(xlim = c(0, 100)) +
+  labs(title = "Clinton's predicted margin of victory computed from holdout sample",
+       x = "Turnout (%)",
+       y = "Clinton's predicted margin of victory")
+```

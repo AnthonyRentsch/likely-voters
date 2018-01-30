@@ -11,6 +11,7 @@ library(reshape2)
 library(caret)
 library(broom)
 library(survey)
+library(randomForest)
 
 #upload CCES data
 cces16 <- read_tsv(file = "/Users/anthonyrentsch/Desktop/UMass/thesis/data/CCES16_Common_OUTPUT_Jul2017_VV.tab",
@@ -106,6 +107,14 @@ cces$validatedvote <- ifelse(as.integer(cces$validatedvote) == 1, "voted", "did 
 
 #2008 variables 
 #V203, V207, V208, V211, V213, V214, V217, V243, V244, V246, CC301_1, CC301_2, CC301_3, CC301_4, CC301_5, CC307a, CC335bush, CC324_1, CC324_2,CC325a, CC325b, CC334, CC403,CC405, voter_status
+
+# upload pooled CCES data
+pooled <- readRDS("/Users/anthonyrentsch/Downloads/cumulative_2006_2016.Rds")
+
+# add and recode 8 variables: 
+# family income, religiosity, marital status, news interest, residential mobility, 
+# watching the news, reading a newspaper, voter registration
+
 
 
 
