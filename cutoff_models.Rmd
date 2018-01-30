@@ -9,6 +9,7 @@ output:
     collapsed: false
     smooth_scroll: false
     df_print: kable
+    keep_md: true
 ---
 
 ```{r setup, echo = FALSE, include=FALSE}
