@@ -337,7 +337,7 @@ I will essentially repeat the process from above, but now the logistic regressio
     -   Watch news
     -   Read paper
 
-Note that this list should not be viewed as comprehensive - it reflects the research that I conducted for this project and it is possible that I have missed potentially important variables. Furthermore, note that the inclusion of the political interest/activism items about watching the news or reading the paper reduces the training sample by nearly 20k respondents (33,222 13,474) and the test sample by roughly 9k respondents (14,464 5,687).
+Note that this list should not be viewed as comprehensive - it reflects the research that I conducted for this project and it is possible that I have missed potentially important variables. Furthermore, note that the inclusion of the political interest/activism items about watching the news or reading the paper reduces the training sample by nearly 20k respondents (33,222 to 13,474) and the test sample by roughly 9k respondents (14,464 to 5,687).
 
 ### Building model
 
@@ -443,6 +443,8 @@ Perry- Gallup index
 
 ![](cutoff_models_files/figure-markdown_github/unnamed-chunk-33-1.png)
 
+This model performs incredibly poorly, perhaps because the inclusion of so few variables in the random forest algorithm does not allow the model to differentiate the vote likelihood of respondents very well. In fact, this model predicts that almost all respondents are likely voters, which can't be right. The next model, which considers more variables, performs quite a bit better.
+
 Perry-Gallup index + all variables potentially related to turnout
 -----------------------------------------------------------------
 
@@ -455,3 +457,5 @@ Perry-Gallup index + all variables potentially related to turnout
 ### Election predictions
 
 ![](cutoff_models_files/figure-markdown_github/unnamed-chunk-38-1.png)
+
+This is more of the distribution of vote propensity scores that I would expect to see. Similarly, this is the trend in the true negative and true positive rates that I would expect to see. When we turn to election predictions, this model actually gets really close to predicting the correct result if we consider a very low turnout rate (a little under 25%).
