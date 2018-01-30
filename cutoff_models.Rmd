@@ -2,12 +2,12 @@
 title: "Cutoff Models"
 date: "January 30, 2018"
 output:
-  html_document:
+  github_document:
     toc: true
-    toc_float: true
+    #toc_float: true
     toc_depth: 2
-    collapsed: false
-    smooth_scroll: false
+    #collapsed: false
+    #smooth_scroll: false
     df_print: kable
 ---
 
