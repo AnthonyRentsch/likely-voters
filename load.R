@@ -97,19 +97,24 @@ cces08 <- left_join(cces08, race, by = "race")
 
 # create pooled cces data
 # for now just handles vote intent, vote history
-cces <- cces08 %>% select(state_abbreviation, CC326, CC326b, CC327, vote_gen08) %>% 
-  rename(state = state_abbreviation, intent = CC326, earlyvotechoice = CC326b, votechoice = CC327,
-         validatedvote = vote_gen08)
-cces$validatedvote <- ifelse(as.integer(cces$validatedvote) == 1, "voted", "did not vote")
+# cces <- cces08 %>% select(state_abbreviation, CC326, CC326b, CC327, vote_gen08) %>% 
+#   rename(state = state_abbreviation, intent = CC326, earlyvotechoice = CC326b, votechoice = CC327,
+#          validatedvote = vote_gen08)
+# cces$validatedvote <- ifelse(as.integer(cces$validatedvote) == 1, "voted", "did not vote")
  
-
-
-
-#2008 variables 
-#V203, V207, V208, V211, V213, V214, V217, V243, V244, V246, CC301_1, CC301_2, CC301_3, CC301_4, CC301_5, CC307a, CC335bush, CC324_1, CC324_2,CC325a, CC325b, CC334, CC403,CC405, voter_status
-
 # upload pooled CCES data
 pooled <- readRDS("/Users/anthonyrentsch/Downloads/cumulative_2006_2016.Rds")
+## 2008
+# no res mobility; need economy variable + other structural variables
+cces08_tojoin <- cces08 %>% select(V100, V246, V217, V214, V244, CC301_2, CC301_3, CC335bush, voter_status) %>% 
+  rename(case_id = V100, faminc = V246, religiosity = V217, marital_status = V214, 
+         newsint = V244, watch_news = CC301_2, read_paper = CC301_3, 
+         pres_approval = CC335bush, registration = voter_status)
+pooled <- left_join(pooled, cces08_tojoin, by = 'case_id')
+  
+## 2012
+
+## 2016
 
 # add and recode 8 variables: 
 # family income, religiosity, marital status, news interest, residential mobility, 
