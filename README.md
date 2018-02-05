@@ -17,4 +17,4 @@ The thesis project is being completed during the 2017-2018 academic year to sati
 
 `cutoff_models.Rmd` - Markdown file where I create/define cutoff likely voter models and evaluate their performance on an individual level and use them to make election predictions. View the output [here](https://github.com/AnthonyRentsch/thesis_LikelyVoters/blob/master/analysis_cutoff_models.md.)
 
-`analysis_test.Rmd` - Test markdown file for cutoff models. This file only uses 2016 data throughout and is meant to be a draft of my analysis. View the output [here](https://github.com/AnthonyRentsch/thesis_LikelyVoters/blob/master/cutoff_models.md).
+`analysis_test.Rmd` - Test markdown file for cutoff models. This file only uses 2016 data throughout and is meant to be a draft of my analysis. View the output [here](https://github.com/AnthonyRentsch/thesis_LikelyVoters/blob/master/analysis_test.md).
