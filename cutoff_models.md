@@ -1,6 +1,6 @@
 Analysis Part I - Cutoff Models
 ================
-February 5, 2018
+February 6, 2018
 
 -   [Introduction](#introduction)
 -   [Vote Intent](#vote-intent)
@@ -13,6 +13,7 @@ February 5, 2018
     -   [Individual-level turnout](#individual-level-turnout-2)
     -   [Election predictions](#election-predictions-2)
 -   [Logistic Regression](#logistic-regression)
+    -   [Perry-Gallup index](#perry-gallup-index-1)
 
 Introduction
 ============
@@ -36,50 +37,10 @@ In each section I will create a model and then evaluate how well it predicts vot
 Vote Intent
 ===========
 
-For now, I am doing this for 2016 until I can create the pooled data set. Here I treat people who report that they have already voted the same as people who report that they definitely plan to vote. Note that the weight I use -- `commonweight` from the `cces16` data -- combines weights based on age, gender, education, race, voter registration, ideology, baseline party identification, born again status, and political interest.
-
-``` r
-# grab data and filter only those with valid vote intent responses
-data <- cces16 %>% select(V101, state_abbreviation, CC16_364, CC16_364b, CC16_364c,  
-                          CL_E2016GVM, commonweight) %>% 
-  rename(ID = V101, state = state_abbreviation, intent = CC16_364, earlychoice = CC16_364b, 
-         choice = CC16_364c, validated = CL_E2016GVM, weight = commonweight) %>% 
-  filter(intent %in% c(1,2,3,4,5))
-
-# merge vote choice for early/absentee voters and prospective voters
-data <- data %>% 
-  mutate(choice = replace(choice, earlychoice == 1, 1)) %>% 
-  mutate(choice = replace(choice, earlychoice == 2, 2))
-```
+For this section (and the next two), I only need to use 2016 data until. I treat people who report that they have already voted the same as people who report that they definitely plan to vote. Note that the weight I use -- `commonweight` from the `cces16` data -- combines weights based on age, gender, education, race, voter registration, ideology, baseline party identification, born again status, and political interest.
 
 Individual-level turnout
 ------------------------
-
-``` r
-validation_by_intent <- function(intention){
-  willvote <- data %>% 
-    filter(intent %in% intention)
-  wontvote <- data %>% 
-    anti_join(willvote, by = "ID")
-
-  pred_voters <- willvote %>% 
-    count(validated = !is.na(validated)) %>% 
-    mutate(percent = round((n/sum(n))*100,2)) %>% 
-    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
-    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
-    select(-n)
-  
-  pred_nonvoters <- wontvote %>% 
-    count(validated = !is.na(validated)) %>% 
-    mutate(percent = round((n/sum(n))*100,2)) %>% 
-    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
-    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
-    select(-n)
-  
-  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
-    rename(voters = percent_v, nonvoters = percent_nv)
-}
-```
 
 First we compare individual-level turnout prediction accuracy when we define likely voters as:
 
@@ -89,7 +50,7 @@ First we compare individual-level turnout prediction accuracy when we define lik
 -   those who say they will definitely vote, have voted already, will probably vote, or who are undecided
 -   all respondents in the sample
 
-Let's sum that all up, where
+where:
 
 -   true positive rate = rate at which predicted voters are validated as voters
 -   true negative rate = rate at which predicted nonvoters are not validated as voters
@@ -99,20 +60,6 @@ Let's sum that all up, where
 Election predictions
 --------------------
 
-``` r
-vote_choice_intent <- function(intention){
-  data %>% 
-  filter(intent %in% intention) %>% 
-  filter(choice %in% c(1,2) | earlychoice %in% c(1,2)) %>% 
-  mutate(choice = replace(choice, choice == 1, "Trump")) %>% 
-  mutate(choice = replace(choice, choice == 2, "Clinton")) %>% 
-  group_by(choice) %>% 
-  summarise(n = sum(weight)) %>% 
-  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
-  select(-n)
-}
-```
-
 Now we compare election predictions, using the same likely voter models as specified above.
 
 ![](cutoff_models_files/figure-markdown_github/unnamed-chunk-6-1.png)
@@ -120,12 +67,14 @@ Now we compare election predictions, using the same likely voter models as speci
 Vote Intent + Vote History
 ==========================
 
-Let's move on to the next baseline model - using vote history and vote intent. I follow the same template from above but consider what happens when likely voters are defined as individuals who report that they voted in the previous presidential election (2012) as well as what happens when we do not make that distinction.
+Let's move on to the next baseline model - using vote history and vote intent. I follow the same template from above but consider what happens when likely voters are defined as individuals who report that they voted in the previous presidential election (2012) as well as what happens when we do not make that distinction. I also consider defining likely voters as voters who were validated as voters in 2012.
+
+Note that this will necessarily exclude any respondent who was too young to vote in 2012 (unless they lie on this question, of course).
 
 Individual-level turnout
 ------------------------
 
-First, I'll consider everyone who self-reported that they voted in 2012. Note that this will necessarily exclude any respondent who was too young to vote in 2012 (unless they lie on this question, of course).
+First, I'll consider everyone who self-reported that they voted in 2012.
 
 | Vote history                                | Vote intent                                                  |  True positive rate|  True negative rate|
 |:--------------------------------------------|:-------------------------------------------------------------|-------------------:|-------------------:|
@@ -162,9 +111,9 @@ In their 2016 report on likely voter methodology, the Pew Research Center uses t
 -   In the 2012 presidential election between Barack Obama and Mitt Romney, did things come up that kept you from voting, or did you happen to vote? **Yes, voted**; no.
 -   Please rate your chance of voting in November on a scale of 10 to 1. 0-8, **9**, **10**.
 
-Since the common content of the CCES does not include all of these survey items (and question wording varies when they do appear), I will attempt to recreate the index using what is available to me.
+Since the common content of the 2016 CCES does not include all of these survey items (and question wording varies when they do appear), I will attempt to recreate the index using what is available to me.
 
-The three variables I will consider are vote intent, vote history, and political interest, which capture 5 of the 7 items on the Perry-Gallup index. The one dimension that I will not be able to recreate is historical voting behavior (voted in precinct before, voting frequency), as this information is not available on the CCES. Here are the CCES questions I will use along with the response options, and how many points each response option gives an individual toward the index.
+The three variables I will consider are vote intent, vote history, and political interest, which capture 5 of the 7 items on the Perry-Gallup index. The one dimension that I will not be able to recreate is self-reported historical voting behavior (voted in precinct before, voting frequency), as this information is not available on the CCES. Here are the CCES questions I will use along with the response options, and how many points each response option gives an individual toward the index.
 
 -   Do you intend to vote in 2016 general election?
     -   Yes, definitely (**+2**)
@@ -189,42 +138,6 @@ There are two further adjustments I make. First, Pew samples off of a list of re
 
 The minimum score, corresponding to those least likely to vote, is 0 while the maximum score, corresponding to those most likely to vote, is 6.
 
-``` r
-data <- cces16 %>% select(V101, state_abbreviation, CC16_364b, CC16_364c,  
-                          CL_E2016GVM, commonweight, CC16_326, CC16_364, newsint, birthyr, votereg) %>% 
-  rename(ID = V101, state = state_abbreviation, earlychoice = CC16_364b, choice = CC16_364c, 
-         validated = CL_E2016GVM, weight = commonweight, vote12 = CC16_326, intent = CC16_364, 
-         interest = newsint, birthyr = birthyr, registration = votereg) %>% 
-  mutate(age = 2016 - birthyr) %>% 
-  select(-birthyr)
-
-# merge vote choice for early/absentee voters and prospective voters
-data <- data %>% 
-  mutate(choice = replace(choice, earlychoice == 1, 1)) %>% 
-  mutate(choice = replace(choice, earlychoice == 2, 2))
-
-# calculate Perry-Gallup index
-data <- data %>% mutate(perry_gallup = 0)
-
-# vote intent
-data$perry_gallup[data$intent == 1 | data$intent == 3] <- data$perry_gallup + 2
-data$perry_gallup[data$intent == 2]  <- data$perry_gallup + 1
-
-# vote history
-data$perry_gallup[data$vote12 == 1 | data$vote12 == 2 | data$vote12 == 3] <- data$perry_gallup + 1
-
-# political interest
-data$perry_gallup[!is.na(data$interest) && data$interest == 1] <- data$perry_gallup + 2
-data$perry_gallup[!is.na(data$interest) && data$interest == 2] <- data$perry_gallup + 1
-
-# voter registration 
-data$perry_gallup[data$registration == 1] <- data$perry_gallup + 1
-
-# age adjustment
-data$perry_gallup[data$age < 22 && (data$vote12 == 4 | data$vote12 == 5 | 
-                                      data$vote12 == 8 | data$vote12 == 9)] <- data$perry_gallup + 1
-```
-
 Individual-level turnout
 ------------------------
 
@@ -238,4 +151,15 @@ Election predictions
 Logistic Regression
 ===================
 
-For the Perry-Gallup regression and RF sections I should make an age and RV adjustment. For age, make two categories: eligible to vote in previous election or not (i.e., age over or under 22). And then a similar one for RVs versus non-RVs.
+For this section I will begin using the cumulative CCES file. I'll consider three sets of variables:
+
+-   Perry-Gallup index
+-   Perry-Gallup index + all variables potentially related to turnout
+-   Perry-Gallup + all variables potentially related to turnout + structural election variables
+
+Note that when I just consider the Perry-Gallup index I do make a similar adjustment for age and registration. For age, I define a variable `eligible` that is coded 1 if a respondent was old enough to vote in 2012, or is 22 or older now, and coded 0 if a respondent was not old enough to vote in 2012, or is younger than 22 now. For registration, I recode the variable to be 1 if the respondent reported that they were registered to vote and 0 if they reported that they were not registered or if they did not know.
+
+Perry-Gallup index
+------------------
+
+### Individual-level turnout

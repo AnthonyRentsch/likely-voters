@@ -1,6 +1,6 @@
 ---
 title: "Analysis Part I - Cutoff Models"
-date: "February 5, 2018"
+date: "February 6, 2018"
 output:
   github_document:
     toc: true
@@ -43,10 +43,10 @@ In each section I will create a model and then evaluate how well it predicts vot
 
 # Vote Intent
 
-For now, I am doing this for 2016 until I can create the pooled data set. Here I treat people who report that they have already voted the same as people who report that they definitely plan to vote. Note that the weight I use -- `commonweight` from the `cces16` data -- combines weights based on age, gender, education, race, voter registration, ideology, baseline party identification, born again status, and political interest.
+For this section (and the next two), I only need to use 2016 data until. I treat people who report that they have already voted the same as people who report that they definitely plan to vote. Note that the weight I use -- `commonweight` from the `cces16` data -- combines weights based on age, gender, education, race, voter registration, ideology, baseline party identification, born again status, and political interest.
 
 
-```{r}
+```{r, echo = FALSE}
 # grab data and filter only those with valid vote intent responses
 data <- cces16 %>% select(V101, state_abbreviation, CC16_364, CC16_364b, CC16_364c,  
                           CL_E2016GVM, commonweight) %>% 
@@ -64,7 +64,7 @@ data <- data %>%
 
 ## Individual-level turnout
 
-```{r}
+```{r, echo = FALSE}
 validation_by_intent <- function(intention){
   willvote <- data %>% 
     filter(intent %in% intention)
@@ -98,7 +98,7 @@ First we compare individual-level turnout prediction accuracy when we define lik
 * those who say they will definitely vote, have voted already, will probably vote, or who are undecided
 * all respondents in the sample
 
-Let's sum that all up, where
+where:
 
 * true positive rate = rate at which predicted voters are validated as voters
 * true negative rate = rate at which predicted nonvoters are not validated as voters
@@ -145,7 +145,7 @@ df %>% gather(type, value, true_positive:true_negative) %>%
 ## Election predictions
 
 
-```{r}
+```{r, echo = FALSE}
 vote_choice_intent <- function(intention){
   data %>% 
   filter(intent %in% intention) %>% 
@@ -192,14 +192,18 @@ df %>%
 
 # Vote Intent + Vote History
 
-Let's move on to the next baseline model - using vote history and vote intent. I follow the same template from above but consider what happens when likely voters are defined as individuals who report that they voted in the previous presidential election (2012) as well as what happens when we do not make that distinction.
+Let's move on to the next baseline model - using vote history and vote intent. I follow the same template from above but consider what happens when likely voters are defined as individuals who report that they voted in the previous presidential election (2012) as well as what happens when we do not make that distinction. I also consider defining likely voters as voters who were validated as voters in 2012.
+
+Note that this will necessarily exclude any respondent who was too young to vote in 2012 (unless they lie on this question, of course).
 
 ```{r, echo = FALSE}
 # grab data and filter only those with valid vote intent and vote history responses
 data <- cces16 %>% select(V101, state_abbreviation, CC16_364, CC16_364b, CC16_364c, CC16_326,  
-                          CL_E2016GVM, commonweight) %>% 
+                          CL_E2016GVM, commonweight, birthyr) %>% 
   rename(ID = V101, state = state_abbreviation, intent = CC16_364, earlychoice = CC16_364b, 
-         choice = CC16_364c, vote12 = CC16_326, validated = CL_E2016GVM, weight = commonweight) %>% 
+         choice = CC16_364c, vote12 = CC16_326, validated = CL_E2016GVM, weight = commonweight,
+         birthyr = birthyr) %>%
+  mutate(age = 2016 - birthyr) %>% 
   filter(intent %in% c(1,2,3,4,5)) %>% 
   filter(vote12 %in% c(1,2,3,4,5))
 
@@ -214,7 +218,9 @@ data <- data %>%
 ```{r, echo = FALSE}
 validation_intent_history <- function(intention, history){
   willvote <- data %>% 
-    filter(intent %in% intention, vote12 %in% history)
+    filter(intent %in% intention, vote12 %in% history 
+           #| age <= 22
+           )
   wontvote <- data %>% 
     anti_join(willvote, by = "ID")
 
@@ -237,7 +243,7 @@ validation_intent_history <- function(intention, history){
 }
 ```
 
-First, I'll consider everyone who self-reported that they voted in 2012. Note that this will necessarily exclude any respondent who was too young to vote in 2012 (unless they lie on this question, of course).
+First, I'll consider everyone who self-reported that they voted in 2012.
 
 ```{r, echo = FALSE, warning = FALSE}
 # voted in 2012
@@ -418,9 +424,9 @@ In their 2016 report on likely voter methodology, the Pew Research Center uses t
 that kept you from voting, or did you happen to vote? **Yes, voted**; no.
 * Please rate your chance of voting in November on a scale of 10 to 1. 0-8, **9**, **10**.
 
-Since the common content of the CCES does not include all of these survey items (and question wording varies when they do appear), I will attempt to recreate the index using what is available to me. 
+Since the common content of the 2016 CCES does not include all of these survey items (and question wording varies when they do appear), I will attempt to recreate the index using what is available to me. 
 
-The three variables I will consider are vote intent, vote history, and political interest, which capture 5 of the 7 items on the Perry-Gallup index. The one dimension that I will not be able to recreate is historical voting behavior (voted in precinct before, voting frequency), as this information is not available on the CCES. Here are the CCES questions I will use along with the response options, and how many points each response option gives an individual toward the index. 
+The three variables I will consider are vote intent, vote history, and political interest, which capture 5 of the 7 items on the Perry-Gallup index. The one dimension that I will not be able to recreate is self-reported historical voting behavior (voted in precinct before, voting frequency), as this information is not available on the CCES. Here are the CCES questions I will use along with the response options, and how many points each response option gives an individual toward the index. 
 
 * Do you intend to vote in 2016 general election?
     + Yes, definitely (**+2**)
@@ -445,7 +451,7 @@ There are two further adjustments I make. First, Pew samples off of a list of re
 
 The minimum score, corresponding to those least likely to vote, is 0 while the maximum score, corresponding to those most likely to vote, is 6.
 
-```{r, warning = FALSE}
+```{r, echo = FALSE, warning = FALSE}
 data <- cces16 %>% select(V101, state_abbreviation, CC16_364b, CC16_364c,  
                           CL_E2016GVM, commonweight, CC16_326, CC16_364, newsint, birthyr, votereg) %>% 
   rename(ID = V101, state = state_abbreviation, earlychoice = CC16_364b, choice = CC16_364c, 
@@ -579,13 +585,94 @@ df %>%
   coord_flip() +
   labs(y = "Clinton's predicted margin of victory") +
   geom_hline(yintercept = 2.1, lty = 2, colour = "red")
-
 ```
 
 
 
 # Logistic Regression
 
+For this section I will begin using the cumulative CCES file. I'll consider three sets of variables:
+
+* Perry-Gallup index
+* Perry-Gallup index + all variables potentially related to turnout
+* Perry-Gallup + all variables potentially related to turnout + structural election variables
+
+Note that when I just consider the Perry-Gallup index I do make a similar adjustment for age and registration. For age, I define a variable `eligible` that is coded 1 if a respondent was old enough to vote in 2012, or is 22 or older now, and coded 0 if a respondent was not old enough to vote in 2012, or is younger than 22 now. For registration, I recode the variable to be 1 if the respondent reported that they were registered to vote and 0 if they reported that they were not registered or if they did not know.
+
+## Perry-Gallup index
+
+```{r, echo = FALSE, warning = FALSE}
+# # training set = pooled data from 2012 and 2008
+# train <- pooled %>% filter(year %in% c(2008, 2012))
+# test <- pooled %>% filter(year == 2016)
+# 
+# # exclude Rs who weren't asked these questions in train...
+# train <- train[train$vote12 < 8,] 
+# train <- train[train$intent < 8,]
+# train <- train[train$interest < 8,]
+# 
+# # ... and test
+# test <- test[test$vote12 < 8,] 
+# test <- test[test$intent < 8,]
+# test <- test[test$interest < 8,]
+# 
+# # recode vote12 so that we capture whether someone voted or not and not for who for train...
+# train$vote12[train$vote12 == 1 | train$vote12 == 2 | train$vote12 == 3] <- 1
+# train$vote12[train$vote12 == 4 | train$vote12 == 5] <- 2
+# 
+# # ... and test
+# test$vote12[test$vote12 == 1 | test$vote12 == 2 | test$vote12 == 3] <- 1
+# test$vote12[test$vote12 == 4 | test$vote12 == 5] <- 2
+# 
+# # recode interest to put 'Don't know' responses as 'Hardly at all'
+# train$interest[train$interest == 7] <- 4
+# test$interest[test$interest == 7] <- 4
+# 
+# # set all categorical variables as factors
+# train <- train %>% mutate(validated = as.factor(validated),
+#                  vote12 = as.factor(vote12),
+#                  intent = as.factor(intent),
+#                  interest = as.factor(interest),
+#                  registration = as.factor(registration))
+# test <- test %>% mutate(validated = as.factor(validated),
+#                  vote12 = as.factor(vote12),
+#                  intent = as.factor(intent),
+#                  interest = as.factor(interest),
+#                  registration = as.factor(registration))
+# 
+# # run unweighted model
+# formula <- as.formula(validated ~ vote12 + intent + interest + registration)
+# model_unweighted <- glm(formula, family = binomial(link = "logit"), data = train)
+#   
+# # run weighted model
+# svy.train <- svydesign(ids = ~ 1, data = train, weights = ~weight)
+# model_weighted <- svyglm(formula, design = svy.train, family = binomial)
+# 
+# # apply the models to test data
+# # unweighted
+# predictions_unweighted <- cbind(test, predict(model_unweighted, newdata = test, type = "response"))
+# predictions_unweighted <- as.data.frame(predictions_unweighted)
+# # weighted
+# predictions_weighted <- cbind(test, predict(model_weighted, newdata = test, type = "response"))
+# predictions_weighted <- as.data.frame(predictions_weighted)
+```
 
 
-For the Perry-Gallup regression and RF sections I should make an age and RV adjustment. For age, make two categories: eligible to vote in previous election or not (i.e., age over or under 22). And then a similar one for RVs versus non-RVs.
+### Individual-level turnout
+
+```{r, echo = FALSE}
+# For the Perry-Gallup regression and RF sections I should make an age and RV adjustment. For age, make two categories: eligible to vote in previous election or not (i.e., age over or under 22). And then a similar one for RVs versus non-RVs.
+# 
+# I will not be considering the political activism/interest items of reading newspaper or watching tv anymore --> imputation doesn't make sense because I'm missing so much of it and not randomly (i.e., don't have any for 2012).
+# 
+# Consider weighted and unweighted regression in this section.
+# -2008 + 2012
+# --weighted
+# --unweighted
+# 
+# -if no real differences I do not need to show both sets of graphs, can just explain
+# 
+# -overlay histograms of propensity scores for treatment and control to see if we have balance and overlap!!!!
+
+#going to have to recode vote history
+```
