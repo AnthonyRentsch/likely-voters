@@ -1,6 +1,6 @@
 Analysis Part I - Cutoff Models
 ================
-February 6, 2018
+February 13, 2018
 
 -   [Introduction](#introduction)
 -   [Vote Intent](#vote-intent)
@@ -67,7 +67,7 @@ Now we compare election predictions, using the same likely voter models as speci
 Vote Intent + Vote History
 ==========================
 
-Let's move on to the next baseline model - using vote history and vote intent. I follow the same template from above but consider what happens when likely voters are defined as individuals who report that they voted in the previous presidential election (2012) as well as what happens when we do not make that distinction. I also consider defining likely voters as voters who were validated as voters in 2012.
+Let's move on to the next baseline model - using vote history and vote intent. I follow the same template from above but consider what happens when likely voters are defined as individuals who report that they voted in the previous presidential election (2012) as well as what happens when we do not make that distinction.
 
 Note that this will necessarily exclude any respondent who was too young to vote in 2012 (unless they lie on this question, of course).
 
@@ -157,9 +157,17 @@ For this section I will begin using the cumulative CCES file. I'll consider thre
 -   Perry-Gallup index + all variables potentially related to turnout
 -   Perry-Gallup + all variables potentially related to turnout + structural election variables
 
-Note that when I just consider the Perry-Gallup index I do make a similar adjustment for age and registration. For age, I define a variable `eligible` that is coded 1 if a respondent was old enough to vote in 2012, or is 22 or older now, and coded 0 if a respondent was not old enough to vote in 2012, or is younger than 22 now. For registration, I recode the variable to be 1 if the respondent reported that they were registered to vote and 0 if they reported that they were not registered or if they did not know.
+Note that when I just consider the Perry-Gallup index I do make a similar adjustment for age and registration. For age, I define a variable `eligible` that is coded 1 if a respondent was old enough to vote in the previous presidential election and coded 0 if a respondent was not old enough to vote in the previous election. For registration, I recode the variable to be 1 if the respondent reported that they were registered to vote and 0 if they reported that they were not registered or if they did not know.
 
 Perry-Gallup index
 ------------------
 
 ### Individual-level turnout
+
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-17-1.png)
+
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-18-1.png)
+
+### Election Predictions
+
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-19-1.png)

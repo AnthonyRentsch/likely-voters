@@ -1,6 +1,6 @@
 ---
 title: "Analysis Part I - Cutoff Models"
-date: "February 6, 2018"
+date: "February 13, 2018"
 output:
   github_document:
     toc: true
@@ -134,11 +134,14 @@ while(i <= length(mods)){
 df$model <- factor(df$model, levels = df$model)
 
 df %>% gather(type, value, true_positive:true_negative) %>%
+  mutate(type = replace(type, type == 'true_positive', 'true positive'),
+         type = replace(type, type == 'true_negative', 'true negative')) %>% 
   ggplot(aes(factor(model), value, fill = type)) +
   geom_bar(stat = "identity", position = "dodge") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  labs(x = "model", y = "rate", title = "Individual level vote validation by vote intent") +
-  scale_fill_grey()
+  labs(x = "model", y = "", title = "Individual level vote validation by vote intent") +
+  scale_fill_grey() +
+  theme(legend.title=element_blank())
 ```
 
 
@@ -192,7 +195,7 @@ df %>%
 
 # Vote Intent + Vote History
 
-Let's move on to the next baseline model - using vote history and vote intent. I follow the same template from above but consider what happens when likely voters are defined as individuals who report that they voted in the previous presidential election (2012) as well as what happens when we do not make that distinction. I also consider defining likely voters as voters who were validated as voters in 2012.
+Let's move on to the next baseline model - using vote history and vote intent. I follow the same template from above but consider what happens when likely voters are defined as individuals who report that they voted in the previous presidential election (2012) as well as what happens when we do not make that distinction.
 
 Note that this will necessarily exclude any respondent who was too young to vote in 2012 (unless they lie on this question, of course).
 
@@ -536,11 +539,14 @@ while(i <= length(mods)){
 df$model <- factor(df$model, levels = df$model)
 
 df %>% gather(type, value, true_positive:true_negative) %>%
+  mutate(type = replace(type, type == 'true_positive', 'True positive rate'),
+         type = replace(type, type == 'true_negative', 'True negative rate')) %>% 
   ggplot(aes(factor(model), value, fill = type)) +
   geom_bar(stat = "identity", position = "dodge") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  labs(x = "model", y = "rate", title = "Individual level vote validation by Perry-Gallup index score") +
-  scale_fill_grey()
+  labs(x = "model", y = "", title = "Individual level vote validation by Perry-Gallup index score") +
+  scale_fill_grey() +
+  theme(legend.title=element_blank())
 ```
 
 ## Election predictions
@@ -597,82 +603,142 @@ For this section I will begin using the cumulative CCES file. I'll consider thre
 * Perry-Gallup index + all variables potentially related to turnout
 * Perry-Gallup + all variables potentially related to turnout + structural election variables
 
-Note that when I just consider the Perry-Gallup index I do make a similar adjustment for age and registration. For age, I define a variable `eligible` that is coded 1 if a respondent was old enough to vote in 2012, or is 22 or older now, and coded 0 if a respondent was not old enough to vote in 2012, or is younger than 22 now. For registration, I recode the variable to be 1 if the respondent reported that they were registered to vote and 0 if they reported that they were not registered or if they did not know.
+Note that when I just consider the Perry-Gallup index I do make a similar adjustment for age and registration. For age, I define a variable `eligible` that is coded 1 if a respondent was old enough to vote in the previous presidential election and coded 0 if a respondent was not old enough to vote in the previous election. For registration, I recode the variable to be 1 if the respondent reported that they were registered to vote and 0 if they reported that they were not registered or if they did not know.
 
 ## Perry-Gallup index
 
 ```{r, echo = FALSE, warning = FALSE}
-# # training set = pooled data from 2012 and 2008
-# train <- pooled %>% filter(year %in% c(2008, 2012))
-# test <- pooled %>% filter(year == 2016)
-# 
-# # exclude Rs who weren't asked these questions in train...
-# train <- train[train$vote12 < 8,] 
-# train <- train[train$intent < 8,]
-# train <- train[train$interest < 8,]
-# 
-# # ... and test
-# test <- test[test$vote12 < 8,] 
-# test <- test[test$intent < 8,]
-# test <- test[test$interest < 8,]
-# 
-# # recode vote12 so that we capture whether someone voted or not and not for who for train...
-# train$vote12[train$vote12 == 1 | train$vote12 == 2 | train$vote12 == 3] <- 1
-# train$vote12[train$vote12 == 4 | train$vote12 == 5] <- 2
-# 
-# # ... and test
-# test$vote12[test$vote12 == 1 | test$vote12 == 2 | test$vote12 == 3] <- 1
-# test$vote12[test$vote12 == 4 | test$vote12 == 5] <- 2
-# 
-# # recode interest to put 'Don't know' responses as 'Hardly at all'
-# train$interest[train$interest == 7] <- 4
-# test$interest[test$interest == 7] <- 4
-# 
-# # set all categorical variables as factors
-# train <- train %>% mutate(validated = as.factor(validated),
-#                  vote12 = as.factor(vote12),
-#                  intent = as.factor(intent),
-#                  interest = as.factor(interest),
-#                  registration = as.factor(registration))
-# test <- test %>% mutate(validated = as.factor(validated),
-#                  vote12 = as.factor(vote12),
-#                  intent = as.factor(intent),
-#                  interest = as.factor(interest),
-#                  registration = as.factor(registration))
-# 
-# # run unweighted model
-# formula <- as.formula(validated ~ vote12 + intent + interest + registration)
-# model_unweighted <- glm(formula, family = binomial(link = "logit"), data = train)
-#   
-# # run weighted model
-# svy.train <- svydesign(ids = ~ 1, data = train, weights = ~weight)
-# model_weighted <- svyglm(formula, design = svy.train, family = binomial)
-# 
-# # apply the models to test data
-# # unweighted
-# predictions_unweighted <- cbind(test, predict(model_unweighted, newdata = test, type = "response"))
-# predictions_unweighted <- as.data.frame(predictions_unweighted)
-# # weighted
-# predictions_weighted <- cbind(test, predict(model_weighted, newdata = test, type = "response"))
-# predictions_weighted <- as.data.frame(predictions_weighted)
+# create training set 
+train <- pooled %>% filter(year %in% c(2008,2010,2012,2014))
+test <- pooled %>% filter(year == 2016)
+
+# create eligible variable
+# train
+train$eligible[train$year %in% c(2008, 2012) & train$age < 22] <- 0
+train$eligible[train$year %in% c(2008, 2012) & train$age >= 22] <- 1
+train$eligible[train$year %in% c(2010, 2014) & train$age < 20] <- 0
+train$eligible[train$year %in% c(2010, 2014) & train$age >= 22] <- 1
+# test
+test$eligible[test$age < 22] <- 0
+test$eligible[test$age >= 22] <- 1
+
+# run unweighted model
+formula <- as.formula(validated ~ vote_history + intent + interest + registration + eligible)
+model_unweighted <- glm(formula, family = binomial(link = "logit"), data = train)
+
+# run weighted model
+svy.train <- svydesign(ids = ~ 1, data = train, weights = ~weight)
+model_weighted <- svyglm(formula, design = svy.train, family = binomial)
+
+# apply the models to test data
+# unweighted
+predictions_unweighted <- cbind(test, predict(model_unweighted, newdata = test, type = "response"))
+predictions_unweighted <- as.data.frame(predictions_unweighted)
+predictions_unweighted <- predictions_unweighted %>% 
+  rename(response = 'predict(model_unweighted, newdata = test, type = \"response\")')
+# weighted
+predictions_weighted <- cbind(test, predict(model_weighted, newdata = test, type = "response"))
+predictions_weighted <- as.data.frame(predictions_weighted)
 ```
 
 
 ### Individual-level turnout
 
 ```{r, echo = FALSE}
-# For the Perry-Gallup regression and RF sections I should make an age and RV adjustment. For age, make two categories: eligible to vote in previous election or not (i.e., age over or under 22). And then a similar one for RVs versus non-RVs.
-# 
-# I will not be considering the political activism/interest items of reading newspaper or watching tv anymore --> imputation doesn't make sense because I'm missing so much of it and not randomly (i.e., don't have any for 2012).
-# 
-# Consider weighted and unweighted regression in this section.
-# -2008 + 2012
-# --weighted
-# --unweighted
-# 
-# -if no real differences I do not need to show both sets of graphs, can just explain
-# 
-# -overlay histograms of propensity scores for treatment and control to see if we have balance and overlap!!!!
-
-#going to have to recode vote history
+ggplot(predictions_unweighted) +
+  geom_histogram(aes(x = response), position = "identity", bins = 20) +
+  coord_cartesian(xlim = c(0, 1)) +
+  labs(title = paste0("Predicted vote propensity scores for 2016 CCES holdout sample (N = ",
+                      nrow(predictions_unweighted), ")", sep = ""),
+       x = "Vote propensity score")
 ```
+
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# consider turnout rates from 0.01 to 0.99 by 1
+turnout_rates <- seq(from = 0.01, to = .99, by = 0.01)
+
+# calculate true positive and negative rates for each level of turnout
+validation_by_logreg <- function(turnout){
+  willvote <- predictions_unweighted %>% 
+    arrange(desc(response)) %>% 
+    top_n(round(nrow(predictions_unweighted)*turnout,0))
+  wontvote <- predictions_unweighted %>% 
+    anti_join(willvote, by = "case_id")
+
+  pred_voters <- willvote %>% 
+    count(validated = (validated == 'Voted')) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  pred_nonvoters <- wontvote %>% 
+    count(validated = (validated == 'Voted')) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+    rename(voters = percent_v, nonvoters = percent_nv)
+}
+
+true_pos_neg_rates_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- validation_by_logreg(turnout_rates[i])
+   true_pos_neg_rates_by_turnout[i,1] <- temp$voters[temp$validated=="Yes"]
+   true_pos_neg_rates_by_turnout[i,2] <- temp$nonvoters[temp$validated=="No"]
+   true_pos_neg_rates_by_turnout[i,3] <- i
+   i = i +1
+}
+
+# plot lines for the two rates
+true_pos_neg_rates_by_turnout %>% 
+  rename(true_positive = V1, true_negative = V2, i = V3) %>% 
+  ggplot() +
+  geom_line(aes(x = turnout_rates[i]*100, y = true_positive, lty = "True positive")) +
+  geom_line(aes(x = turnout_rates[i]*100, y = true_negative, lty = "True negative")) +
+  labs(title = "True positive and true negative rates for holdout sample",
+       x = "Turnout rate (%)",
+       y = "",
+       lty = "Type") +
+    theme(legend.title=element_blank())
+```
+
+### Election Predictions
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+vote_choice_logreg <- function(turnout){
+  predictions_unweighted %>% 
+  top_n(round(nrow(predictions_unweighted)*turnout,0), wt = response) %>% 
+  filter(choice %in% c('Donald Trump (Republican)','Hillary Clinton (Democrat)')) %>% 
+  #mutate(choice = replace(choice, choice == 'Donald Trump (Republican)', 'Trump')) %>% 
+  #mutate(choice = replace(choice, choice == 'Hillary Clinton (Democrat)', 'Clinton')) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+margin_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- vote_choice_logreg(turnout_rates[i])
+   margin_by_turnout[i,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+   margin_by_turnout[i,2] <- i
+   i = i +1
+}
+
+margin_by_turnout %>% 
+  rename(margin = V1, i = V2) %>% 
+  ggplot() +
+  geom_point(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.25) +
+  geom_hline(yintercept = 2.1, lty = 2, col = "red") +
+  #coord_cartesian(xlim = c(25, 100)) +
+  labs(title = "Clinton's predicted margin of victory computed from holdput sample",
+       x = "Turnout (%)",
+       y = "Clinton's predicted margin of victory")
+```
+
