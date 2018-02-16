@@ -16,7 +16,7 @@ library(haven)
 library(labelled)
 
 # upload CCES data
-cces16 <- read_tsv(file = "/Users/anthonyrentsch/Desktop/UMass/thesis/data/CCES16_Common_OUTPUT_Jul2017_VV.tab",
+cces16 <- read_tsv(file = "/Users/anthonyrentsch/Desktop/UMass/thesis/data/CCES16_Common_OUTPUT_Feb2018_VV.tab",
                  col_names = TRUE)
 cces12 <- read_tsv(file = "/Users/anthonyrentsch/Desktop/UMass/thesis/data/CCES12_Common_VV.tab",
                    col_names = TRUE)
@@ -102,7 +102,7 @@ cces08 <- left_join(cces08, race, by = "race")
 ##############
  
 ## upload pooled CCES data
-pooled <- readRDS("/Users/anthonyrentsch/Downloads/cumulative_2006_2016.Rds")
+pooled <- readRDS("/Users/anthonyrentsch/Desktop/UMass/thesis/data/cumulative_2006_2016 (1).Rds")
 
 ## 2008
 cces08_tojoin <- cces08 %>% select(V100, V246, V217, V214, V244, CC301_2, CC301_3, CC335bush, V203, CC334, CC326, CC324_1) %>% 
@@ -121,10 +121,10 @@ pooled <- left_join(pooled, cces12_tojoin, by = 'case_id')
 
 ## 2016
 cces16_tojoin <- cces16 %>% select(V101, faminc, pew_churatd, marstat, newsint,
-                                   CC16_361, votereg, CC16_320a, CC16_364, CC16_326) %>% 
+                                   CC16_361, votereg, CC16_320a, CC16_364, CC16_316) %>% 
   rename(case_id = V101, income = faminc, religiosity = pew_churatd, marital_status = marstat,
          interest = newsint, residential_mobility = CC16_361, registration = votereg, 
-         intent = CC16_364, vote_history = CC16_326)
+         intent = CC16_364, vote_history = CC16_316)
 pooled <- left_join(pooled, cces16_tojoin, by = 'case_id')
 
 ## 2010
@@ -169,6 +169,7 @@ incumbent_approval10 <- cces10 %>% group_by(V501) %>% count(CC315a) %>%
   select(V501, approval) %>% rename(incumbent_name = V501)
 pooled <- left_join(pooled, incumbent_approval10, by = 'incumbent_name')
 # 2014 - do the same thing as 2010
+# FIX!!!!!
 incumbent_approval14 <- cces14 %>% group_by(HouseCand1Name) %>% count(CC14_315a) %>% 
   spread(CC14_315a, n) %>% 
   mutate(approval = round(100*((`1`+`2`)-(`3`+`4`))/(`1`+`2`+`3`+`4`), 0)) %>% 
@@ -189,6 +190,7 @@ pooled$incumbent[pooled$year == 2016] <- 0
 pooled$incumbent[pooled$year == 2010 & as.numeric(pooled$incumbent.x) == 1]  <- 0
 pooled$incumbent[pooled$year == 2010 & as.numeric(pooled$incumbent.x) == 0]  <- 1
 # 2014
+# FIX!!!!! 
 pooled$incumbent[pooled$year == 2014] <- pooled$incumbent.y[pooled$year == 2014]
 
 # polarization variable (Abramowitz 2012)
@@ -276,6 +278,8 @@ pooled$registration[pooled$registration == 1] <- 0
 pooled$registration[pooled$registration == 2 | pooled$registration == 3] <- 1
 
 # vote history 
+# 2008
+pooled$vote_history[pooled$year == 2008 & pooled$vote_history == 2] <- 0
 # 2010
 pooled$vote_history[pooled$year == 2010 & (pooled$vote_history == 1 | pooled$vote_history == 2 | pooled$vote_history == 3)] <- 0
 pooled$vote_history[pooled$year == 2010 & pooled$vote_history == 4 ] <- 1
@@ -286,8 +290,8 @@ pooled$vote_history[pooled$year == 2012 & pooled$vote_history == 4 ] <- 1
 pooled$vote_history[pooled$year == 2014 & (pooled$vote_history == 1 | pooled$vote_history == 2 | pooled$vote_history == 3)] <- 0
 pooled$vote_history[pooled$year == 2014 & pooled$vote_history == 4 ] <- 1
 # 2016
-pooled$vote_history[pooled$year == 2016 & (pooled$vote_history == 1 | pooled$vote_history == 2 | pooled$vote_history == 3)] <- 1
-pooled$vote_history[pooled$year == 2016 & (pooled$vote_history == 4 | pooled$vote_history == 5)] <- 2
+pooled$vote_history[pooled$year == 2016 & (pooled$vote_history == 1 | pooled$vote_history == 2 | pooled$vote_history == 3)] <- 0
+pooled$vote_history[pooled$year == 2016 & pooled$vote_history == 4] <- 1
 
 # interest
 # 2016

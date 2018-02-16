@@ -1,6 +1,6 @@
 Analysis Part I - Cutoff Models
 ================
-February 13, 2018
+February 15, 2018
 
 -   [Introduction](#introduction)
 -   [Vote Intent](#vote-intent)
@@ -37,7 +37,7 @@ In each section I will create a model and then evaluate how well it predicts vot
 Vote Intent
 ===========
 
-For this section (and the next two), I only need to use 2016 data until. I treat people who report that they have already voted the same as people who report that they definitely plan to vote. Note that the weight I use -- `commonweight` from the `cces16` data -- combines weights based on age, gender, education, race, voter registration, ideology, baseline party identification, born again status, and political interest.
+For this section (and the next two), I only need to use 2016 data until. I treat people who report that they have already voted the same as people who report that they definitely plan to vote. Note that the weight I use -- which comes from the cumulative CCES file -- combines weights based on age, gender, education, race, voter registration, ideology, baseline party identification, born again status, and political interest.
 
 Individual-level turnout
 ------------------------
@@ -55,14 +55,14 @@ where:
 -   true positive rate = rate at which predicted voters are validated as voters
 -   true negative rate = rate at which predicted nonvoters are not validated as voters
 
-![](cutoff_models_files/figure-markdown_github/unnamed-chunk-4-1.png)
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-3-1.png)
 
 Election predictions
 --------------------
 
 Now we compare election predictions, using the same likely voter models as specified above.
 
-![](cutoff_models_files/figure-markdown_github/unnamed-chunk-6-1.png)
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-5-1.png)
 
 Vote Intent + Vote History
 ==========================
@@ -74,27 +74,23 @@ Note that this will necessarily exclude any respondent who was too young to vote
 Individual-level turnout
 ------------------------
 
-First, I'll consider everyone who self-reported that they voted in 2012.
+First, I'll consider everyone who self-reported that they voted in 2012. Then I'll consider everyone who self-reported that they voted in 2012 and those that reported that they did not vote or that they do not remember.
 
 | Vote history                                | Vote intent                                                  |  True positive rate|  True negative rate|
 |:--------------------------------------------|:-------------------------------------------------------------|-------------------:|-------------------:|
-| Voted in 2012                               | Already voted + will definitely vote                         |               64.61|               63.08|
-|                                             | Already voted + will definitely or probably vote             |               63.46|               64.80|
-|                                             | Already voted + will definitely or probably vote + undecided |               62.98|               62.10|
-|                                             | All respondents                                              |               62.58|               50.43|
-| Voted in 2012 or don't recall               | Already voted + will definitely vote                         |               64.47|               65.88|
-|                                             | Already voted + will definitely or probably vote             |               63.31|               73.60|
-|                                             | Already voted + will definitely or probably vote + undecided |               62.80|               80.00|
-|                                             | All respondents                                              |               62.37|               46.75|
-| Voted in 2012, don't recall, or didn't vote | Already voted + will definitely vote                         |               64.47|               66.38|
-|                                             | Already voted + will definitely or probably vote             |               63.31|               75.53|
-|                                             | Already voted + will definitely or probably vote + undecided |               62.79|               86.21|
-|                                             | All respondents                                              |               62.36|                  NA|
+| Voted in 2012                               | Already voted + will definitely vote                         |               69.89|               73.73|
+|                                             | Already voted + will definitely or probably vote             |               68.10|               74.51|
+|                                             | Already voted + will definitely or probably vote + undecided |               67.21|               74.22|
+|                                             | All respondents                                              |               66.60|               73.62|
+| Voted in 2012, don't recall, or didn't vote | Already voted + will definitely vote                         |               67.99|               86.55|
+|                                             | Already voted + will definitely or probably vote             |               64.40|               92.88|
+|                                             | Already voted + will definitely or probably vote + undecided |               61.54|               95.87|
+|                                             | All respondents                                              |               57.70|              100.00|
 
 Election predictions
 --------------------
 
-![](cutoff_models_files/figure-markdown_github/unnamed-chunk-12-1.png)
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-10-1.png)
 
 My takeaway is that adding vote history does not add much information on top of vote intent. But this is just for 2016 election predictions - may be useful to predict individual-level turnout and may be useful for other elections still.
 
@@ -141,12 +137,12 @@ The minimum score, corresponding to those least likely to vote, is 0 while the m
 Individual-level turnout
 ------------------------
 
-![](cutoff_models_files/figure-markdown_github/unnamed-chunk-14-1.png)
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-12-1.png)
 
 Election predictions
 --------------------
 
-![](cutoff_models_files/figure-markdown_github/unnamed-chunk-15-1.png)
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-13-1.png)
 
 Logistic Regression
 ===================
@@ -164,10 +160,10 @@ Perry-Gallup index
 
 ### Individual-level turnout
 
-![](cutoff_models_files/figure-markdown_github/unnamed-chunk-17-1.png)
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-15-1.png)
 
-![](cutoff_models_files/figure-markdown_github/unnamed-chunk-18-1.png)
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-16-1.png)
 
 ### Election Predictions
 
-![](cutoff_models_files/figure-markdown_github/unnamed-chunk-19-1.png)
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-17-1.png)

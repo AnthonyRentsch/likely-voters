@@ -1,4 +1,4 @@
-# Developing improved likely voter models for presidential election polling
+# The Elusive ‘Likely Voter’: Improving Prediction of Who Will Vote
 
 This repository contains all of the scripts I will use for the analysis portion of my thesis project. 
 
