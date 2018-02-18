@@ -1,6 +1,6 @@
 Analysis Part I - Cutoff Models
 ================
-February 15, 2018
+February 18, 2018
 
 -   [Introduction](#introduction)
 -   [Vote Intent](#vote-intent)
@@ -14,6 +14,8 @@ February 15, 2018
     -   [Election predictions](#election-predictions-2)
 -   [Logistic Regression](#logistic-regression)
     -   [Perry-Gallup index](#perry-gallup-index-1)
+    -   [Perry-Gallup index + all variables potentially related to turnout](#perry-gallup-index-all-variables-potentially-related-to-turnout)
+    -   [Perry-Gallup index + all variables potentially related to turnout + structural election variables](#perry-gallup-index-all-variables-potentially-related-to-turnout-structural-election-variables)
 
 Introduction
 ============
@@ -78,14 +80,14 @@ First, I'll consider everyone who self-reported that they voted in 2012. Then I'
 
 | Vote history                                | Vote intent                                                  |  True positive rate|  True negative rate|
 |:--------------------------------------------|:-------------------------------------------------------------|-------------------:|-------------------:|
-| Voted in 2012                               | Already voted + will definitely vote                         |               69.89|               73.73|
-|                                             | Already voted + will definitely or probably vote             |               68.10|               74.51|
-|                                             | Already voted + will definitely or probably vote + undecided |               67.21|               74.22|
-|                                             | All respondents                                              |               66.60|               73.62|
-| Voted in 2012, don't recall, or didn't vote | Already voted + will definitely vote                         |               67.99|               86.55|
-|                                             | Already voted + will definitely or probably vote             |               64.40|               92.88|
-|                                             | Already voted + will definitely or probably vote + undecided |               61.54|               95.87|
-|                                             | All respondents                                              |               57.70|              100.00|
+| Voted in 2012                               | Already voted + will definitely vote                         |               69.93|               73.64|
+|                                             | Already voted + will definitely or probably vote             |               68.15|               74.42|
+|                                             | Already voted + will definitely or probably vote + undecided |               67.26|               74.14|
+|                                             | All respondents                                              |               66.65|               73.52|
+| Voted in 2012, don't recall, or didn't vote | Already voted + will definitely vote                         |               68.05|               86.51|
+|                                             | Already voted + will definitely or probably vote             |               64.47|               92.87|
+|                                             | Already voted + will definitely or probably vote + undecided |               61.62|               95.88|
+|                                             | All respondents                                              |               57.77|                  NA|
 
 Election predictions
 --------------------
@@ -167,3 +169,57 @@ Perry-Gallup index
 ### Election Predictions
 
 ![](cutoff_models_files/figure-markdown_github/unnamed-chunk-17-1.png)
+
+Perry-Gallup index + all variables potentially related to turnout
+-----------------------------------------------------------------
+
+This next model considers the Perry-Gallup index variables mentioned in the previous section in addition to a whole slew of demographic variables that literature has suggested may be tied to turnout or to misreporting voting intention. These include:
+
+-   Age
+-   Race
+-   Education
+-   Income
+-   Partisan strength
+-   Religiosity
+-   Marital status
+-   Residential mobility
+-   ~~Racial composition of district~~
+-   ~~Political interest/activism~~
+    -   ~~Watching news~~
+    -   ~~Reading newspaper~~
+
+The racial composition of district and political interest/activism items are not included in my model because they are not widely available on the CCES surveys I consider.
+
+### Individual-level turnout
+
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-19-1.png)
+
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-20-1.png)
+
+### Election Predictions
+
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-21-1.png)
+
+Perry-Gallup index + all variables potentially related to turnout + structural election variables
+-------------------------------------------------------------------------------------------------
+
+In addtion to the variables I included in the last mode, I now include structural election variables. I consider Abramowitz's Time-for-Change model. The model predicts the vote share for the candidate of the incumbent's party based on
+
+-   the net approval rating of the sitting President (using the final Gallup poll in June of the election year),
+-   the annualized growth rate of real GDP in the second quarter of the election year (taken from the U.S. Department of Commerce's Bureau of Economic Analysis)
+-   whether a first-term incumbent is running
+-   an indicator variables to measure the level of polarization (this was added in 2012): it is coded
+    -   1 if first-term incumbent running or open seat where incumbent president has net approval rating over 0
+    -   -1 if no first-term incumbent or incumbent president has net approval rating less than 0
+
+You can read more about his model [here](https://www.washingtonpost.com/blogs/ezra-klein/files/2012/08/abramowitz.pdf). Since I also use midterm election years, I calculate the net approval rating of each respondent's House of Representatives using an item on the CCES and consider the incumbency of this official for respondents in the 2010 and 2014 data sets.
+
+### Individual-level turnout
+
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-23-1.png)
+
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-24-1.png)
+
+### Election Predictions
+
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-25-1.png)

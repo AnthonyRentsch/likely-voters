@@ -1,6 +1,6 @@
 ---
 title: "Analysis Part I - Cutoff Models"
-date: "February 15, 2018"
+date: "February 18, 2018"
 output:
   github_document:
     toc: true
@@ -614,6 +614,299 @@ true_pos_neg_rates_by_turnout %>%
   ggplot() +
   geom_line(aes(x = turnout_rates[i]*100, y = true_positive, lty = "True positive")) +
   geom_line(aes(x = turnout_rates[i]*100, y = true_negative, lty = "True negative")) +
+  geom_vline(xintercept = 60.2, lty = 4) +
+  labs(title = "True positive and true negative rates for holdout sample",
+       x = "Turnout rate (%)",
+       y = "",
+       lty = "Type") +
+    theme(legend.title=element_blank())
+```
+
+### Election Predictions
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+vote_choice_logreg <- function(turnout){
+  predictions_unweighted %>% 
+  top_n(round(nrow(predictions_unweighted)*turnout,0), wt = response) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+margin_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- vote_choice_logreg(turnout_rates[i])
+   margin_by_turnout[i,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+   margin_by_turnout[i,2] <- i
+   i = i +1
+}
+
+margin_by_turnout %>% 
+  rename(margin = V1, i = V2) %>% 
+  ggplot() +
+  geom_point(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.25) +
+  geom_hline(yintercept = 2.1, lty = 2, col = "red") +
+  #coord_cartesian(xlim = c(25, 100)) +
+  labs(title = paste0("Clinton's predicted margin of victory computed from holdout sample (N = ",
+                      nrow(predictions_unweighted), ")", sep = ""),
+       x = "Turnout (%)",
+       y = "Clinton's predicted margin of victory")
+```
+
+## Perry-Gallup index + all variables potentially related to turnout
+
+This next model considers the Perry-Gallup index variables mentioned in the previous section in addition to a whole slew of demographic variables that literature has suggested may be tied to turnout or to misreporting voting intention. These include:
+
+* Age
+* Race
+* Education
+* Income
+* Partisan strength
+* Religiosity
+* Marital status
+* Residential mobility
+* ~~Racial composition of district~~
+* ~~Political interest/activism~~
+    + ~~Watching news~~
+    + ~~Reading newspaper~~
+    
+The racial composition of district and political interest/activism items are not included in my model because they are not widely available on the CCES surveys I consider.
+
+```{r, echo = FALSE, warning = FALSE}
+# create training set 
+train <- pooled %>% filter(year %in% c(2008,2010,2012,2014))
+test <- pooled %>% filter(year == 2016)
+
+# run unweighted model
+formula <- as.formula(validated ~ vote_history + intent + interest + registration + 
+                        gender + age + race + education + income_new + 
+                        partisan_strength + religiosity + marital_status +
+                        residential_mobility)
+model_unweighted <- glm(formula, family = binomial(link = "logit"), data = train)
+
+# run weighted model
+svy.train <- svydesign(ids = ~ 1, data = train, weights = ~weight)
+model_weighted <- svyglm(formula, design = svy.train, family = binomial)
+
+# apply the models to test data
+# unweighted
+predictions_unweighted <- cbind(test, predict(model_unweighted, newdata = test, type = "response"))
+predictions_unweighted <- as.data.frame(predictions_unweighted)
+predictions_unweighted <- predictions_unweighted %>% 
+  rename(response = 'predict(model_unweighted, newdata = test, type = \"response\")')
+# weighted
+predictions_weighted <- cbind(test, predict(model_weighted, newdata = test, type = "response"))
+predictions_weighted <- as.data.frame(predictions_weighted)
+```
+
+### Individual-level turnout
+
+```{r, echo = FALSE, warning = FALSE}
+ggplot(predictions_unweighted) +
+  geom_histogram(aes(x = response), position = "identity", bins = 20) +
+  coord_cartesian(xlim = c(0, 1)) +
+  labs(title = paste0("Predicted vote propensity scores for 2016 CCES holdout sample (N = ",
+                      nrow(predictions_unweighted), ")", sep = ""),
+       x = "Vote propensity score")
+```
+
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# consider turnout rates from 0.01 to 0.99 by 1
+turnout_rates <- seq(from = 0.01, to = .99, by = 0.01)
+
+# calculate true positive and negative rates for each level of turnout
+validation_by_logreg <- function(turnout){
+  willvote <- predictions_unweighted %>% 
+    arrange(desc(response)) %>% 
+    top_n(round(nrow(predictions_unweighted)*turnout,0))
+  wontvote <- predictions_unweighted %>% 
+    anti_join(willvote, by = "case_id")
+
+  pred_voters <- willvote %>% 
+    count(validated = (validated == 'Voted')) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  pred_nonvoters <- wontvote %>% 
+    count(validated = (validated == 'Voted')) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+    rename(voters = percent_v, nonvoters = percent_nv)
+}
+
+true_pos_neg_rates_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- validation_by_logreg(turnout_rates[i])
+   true_pos_neg_rates_by_turnout[i,1] <- temp$voters[temp$validated=="Yes"]
+   true_pos_neg_rates_by_turnout[i,2] <- temp$nonvoters[temp$validated=="No"]
+   true_pos_neg_rates_by_turnout[i,3] <- i
+   i = i +1
+}
+
+# plot lines for the two rates
+true_pos_neg_rates_by_turnout %>% 
+  rename(true_positive = V1, true_negative = V2, i = V3) %>% 
+  ggplot() +
+  geom_line(aes(x = turnout_rates[i]*100, y = true_positive, lty = "True positive")) +
+  geom_line(aes(x = turnout_rates[i]*100, y = true_negative, lty = "True negative")) +
+  geom_vline(xintercept = 60.2, lty = 4) +
+  labs(title = "True positive and true negative rates for holdout sample",
+       x = "Turnout rate (%)",
+       y = "",
+       lty = "Type") +
+    theme(legend.title=element_blank())
+```
+
+### Election Predictions
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+vote_choice_logreg <- function(turnout){
+  predictions_unweighted %>% 
+  top_n(round(nrow(predictions_unweighted)*turnout,0), wt = response) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+margin_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- vote_choice_logreg(turnout_rates[i])
+   margin_by_turnout[i,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+   margin_by_turnout[i,2] <- i
+   i = i +1
+}
+
+margin_by_turnout %>% 
+  rename(margin = V1, i = V2) %>% 
+  ggplot() +
+  geom_point(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.25) +
+  geom_hline(yintercept = 2.1, lty = 2, col = "red") +
+  #coord_cartesian(xlim = c(25, 100)) +
+  labs(title = paste0("Clinton's predicted margin of victory computed from holdout sample (N = ",
+                      nrow(predictions_unweighted), ")", sep = ""),
+       x = "Turnout (%)",
+       y = "Clinton's predicted margin of victory")
+```
+
+
+## Perry-Gallup index + all variables potentially related to turnout + structural election variables
+
+In addtion to the variables I included in the last mode, I now include structural election variables. I consider Abramowitz's Time-for-Change model. The model predicts the vote share for the candidate of the incumbent's party based on 
+
+* the net approval rating of the sitting President (using the final Gallup poll in June of the election year), 
+* the annualized growth rate of real GDP in the second quarter of the election year (taken from the U.S. Department of Commerce's Bureau of Economic Analysis)
+* whether a first-term incumbent is running
+* an indicator variables to measure the level of polarization (this was added in 2012): it is coded
+    + 1 if first-term incumbent running or open seat where incumbent president has net approval rating over 0
+    + -1 if no first-term incumbent or incumbent president has net approval rating less than 0
+
+You can read more about his model [here](https://www.washingtonpost.com/blogs/ezra-klein/files/2012/08/abramowitz.pdf). Since I also use midterm election years, I calculate the net approval rating of each respondent's House of Representatives using an item on the CCES and consider the incumbency of this official for respondents in the 2010 and 2014 data sets.
+
+```{r, echo = FALSE, warning = FALSE}
+# create training set 
+train <- pooled %>% filter(year %in% c(2008,2010,2012,2014))
+test <- pooled %>% filter(year == 2016)
+
+# run unweighted model
+formula <- as.formula(validated ~ vote_history + intent + interest + registration + 
+                        gender + age + race + education + income_new + 
+                        partisan_strength + religiosity + marital_status +
+                        residential_mobility + gdp_growth + approval + incumbent +
+                        polarization)
+model_unweighted <- glm(formula, family = binomial(link = "logit"), data = train)
+
+# run weighted model
+svy.train <- svydesign(ids = ~ 1, data = train, weights = ~weight)
+model_weighted <- svyglm(formula, design = svy.train, family = binomial)
+
+# apply the models to test data
+# unweighted
+predictions_unweighted <- cbind(test, predict(model_unweighted, newdata = test, type = "response"))
+predictions_unweighted <- as.data.frame(predictions_unweighted)
+predictions_unweighted <- predictions_unweighted %>% 
+  rename(response = 'predict(model_unweighted, newdata = test, type = \"response\")')
+# weighted
+# predictions_weighted <- cbind(test, predict(model_weighted, newdata = test, type = "response"))
+# predictions_weighted <- as.data.frame(predictions_weighted)
+```
+
+### Individual-level turnout
+
+```{r, echo = FALSE, warning = FALSE}
+ggplot(predictions_unweighted) +
+  geom_histogram(aes(x = response), position = "identity", bins = 20) +
+  coord_cartesian(xlim = c(0, 1)) +
+  labs(title = paste0("Predicted vote propensity scores for 2016 CCES holdout sample (N = ",
+                      nrow(predictions_unweighted), ")", sep = ""),
+       x = "Vote propensity score")
+```
+
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# consider turnout rates from 0.01 to 0.99 by 1
+turnout_rates <- seq(from = 0.01, to = .99, by = 0.01)
+
+# calculate true positive and negative rates for each level of turnout
+validation_by_logreg <- function(turnout){
+  willvote <- predictions_unweighted %>% 
+    arrange(desc(response)) %>% 
+    top_n(round(nrow(predictions_unweighted)*turnout,0))
+  wontvote <- predictions_unweighted %>% 
+    anti_join(willvote, by = "case_id")
+
+  pred_voters <- willvote %>% 
+    count(validated = (validated == 'Voted')) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  pred_nonvoters <- wontvote %>% 
+    count(validated = (validated == 'Voted')) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+    rename(voters = percent_v, nonvoters = percent_nv)
+}
+
+true_pos_neg_rates_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- validation_by_logreg(turnout_rates[i])
+   true_pos_neg_rates_by_turnout[i,1] <- temp$voters[temp$validated=="Yes"]
+   true_pos_neg_rates_by_turnout[i,2] <- temp$nonvoters[temp$validated=="No"]
+   true_pos_neg_rates_by_turnout[i,3] <- i
+   i = i +1
+}
+
+# plot lines for the two rates
+true_pos_neg_rates_by_turnout %>% 
+  rename(true_positive = V1, true_negative = V2, i = V3) %>% 
+  ggplot() +
+  geom_line(aes(x = turnout_rates[i]*100, y = true_positive, lty = "True positive")) +
+  geom_line(aes(x = turnout_rates[i]*100, y = true_negative, lty = "True negative")) +
+  geom_vline(xintercept = 60.2, lty = 4) +
   labs(title = "True positive and true negative rates for holdout sample",
        x = "Turnout rate (%)",
        y = "",

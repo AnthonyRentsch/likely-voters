@@ -1388,7 +1388,7 @@ test$interest[test$interest == 7] <- 4
 
 # recode income for train...
 train$income_new[train$income %in% c(1,2,3,4)] <- 1 #under 40k
-train$income_new[train$income %in% c(5,6,7,8,9)] <- 2 #40 to 10k
+train$income_new[train$income %in% c(5,6,7,8,9)] <- 2 #40 to 100k
 train$income_new[train$income %in% c(10,11,12,13,14,15,16,31,32)] <- 3 #over 100k
 train$income_new[train$income == 97] <- 4 #prefer not to say
 

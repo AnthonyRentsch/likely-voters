@@ -163,7 +163,7 @@ pooled$pres_approval[pooled$year == 2016] <- 51-45
 pooled$incumbent_name[pooled$year == 2010] <- pooled$incumbent_name.x[pooled$year == 2010]
 pooled$incumbent_name[pooled$year == 2014] <- pooled$incumbent_name.y[pooled$year == 2014]
 #
-incumbent_approval10 <- cces10 %>% group_by(V501) %>% count(CC315a) %>% 
+incumbent_approval10 <- cces10 %>% group_by(V501) %>% count(CC315a) %>%
   spread(CC315a, n) %>% 
   mutate(approval = round(100*((`1`+`2`)-(`3`+`4`))/(`1`+`2`+`3`+`4`), 0)) %>% 
   select(V501, approval) %>% rename(incumbent_name = V501)
@@ -297,7 +297,46 @@ pooled$vote_history[pooled$year == 2016 & pooled$vote_history == 4] <- 1
 # 2016
 pooled$interest[pooled$interest == 7] <- 4
 
-# all other demographic variables...
+# income
+# 2016
+pooled$income_new[pooled$year == 2016 & pooled$income %in% c(1,2,3,4)] <- 1 #under 40k
+pooled$income_new[pooled$year == 2016 & pooled$income %in% c(5,6,7,8,9)] <- 2 #40 to 100k
+pooled$income_new[pooled$year == 2016 & pooled$income %in% c(10,11,12,13,14,15,16,31)] <- 3 #over 100k
+pooled$income_new[pooled$year == 2016 & pooled$income == 97] <- 4 #prefer not to say
+# 2012
+pooled$income_new[pooled$year == 2012 & pooled$income %in% c(1,2,3,4)] <- 1 #under 40k
+pooled$income_new[pooled$year == 2012 & pooled$income %in% c(5,6,7,8,9)] <- 2 #40 to 100k
+pooled$income_new[pooled$year == 2012 & pooled$income %in% c(10,11,12,13,14,15,16,31,32)] <- 3 #over 100k
+pooled$income_new[pooled$year == 2012 & pooled$income == 97] <- 4 #prefer not to say
+# 2008
+pooled$income_new[pooled$year == 2008 & pooled$income %in% c(1,2,3,4,5,6)] <- 1 #under 40k
+pooled$income_new[pooled$year == 2008 & pooled$income %in% c(7,8,9,10,11)] <- 2 #40 to 100k
+pooled$income_new[pooled$year == 2008 & pooled$income %in% c(12,13,14)] <- 3 #over 100k
+pooled$income_new[pooled$year == 2008 & pooled$income == 15] <- 4 #prefer not to say
+# 2010
+pooled$income_new[pooled$year == 2010 & pooled$income %in% c(1,2,3,4,5,6)] <- 1 #under 40k
+pooled$income_new[pooled$year == 2010 & pooled$income %in% c(7,8,9,10,11)] <- 2 #40 to 100k
+pooled$income_new[pooled$year == 2010 & pooled$income %in% c(12,13,14)] <- 3 #over 100k
+pooled$income_new[pooled$year == 2010 & pooled$income == 15] <- 4 #prefer not to say
+# 2014
+pooled$income_new[pooled$year == 2014 & pooled$income %in% c(1,2,3,4)] <- 1 #under 40k
+pooled$income_new[pooled$year == 2014 & pooled$income %in% c(5,6,7,8,9)] <- 2 #40 to 100k
+pooled$income_new[pooled$year == 2014 & pooled$income %in% c(10,11,12,13,14,15,16,31,32)] <- 3 #over 100k
+pooled$income_new[pooled$year == 2014 & pooled$income == 97] <- 4 #prefer not to say
+
+# marital status
+pooled$marital_status[pooled$marital_status %in% c(2,3,4,6)] <- 3 #other
+pooled$marital_status[pooled$marital_status == 5] <- 2 #single
+
+# partisan strength
+pooled$partisan_strength[pooled$pid7 %in% c(1,7)] <- 1 #very strong
+pooled$partisan_strength[pooled$pid7 %in% c(2,6)] <- 2 #strong
+pooled$partisan_strength[pooled$pid7 %in% c(3,5)] <- 3 #moderate
+pooled$partisan_strength[pooled$pid7 %in% c(4,8)] <- 4 #weak
+
+# race
+pooled$race[pooled$race %in% c(7,8)] <- 6 #send Middle Eastern and Mixed to Other
+pooled$race[pooled$race %in% c(7,8)] <- 6
 
 ## exclude Rs who were not asked these questions and other NA values
 # intent
@@ -311,23 +350,48 @@ pooled <- pooled[!is.na(pooled$registration),]
 # interest 
 pooled <- pooled[pooled$interest <= 5,]
 pooled <- pooled[!is.na(pooled$interest),]
+# income
+pooled <- pooled[!pooled$income %in% c(20874,46814,94114),]
+pooled <- pooled[!is.na(pooled$income),]
+# religiosity
+pooled <- pooled[pooled$religiosity <= 7,]
+pooled <- pooled[!is.na(pooled$religiosity),]
+# marital status
+pooled <- pooled[!pooled$marital_status %in% c(8,9),]
+pooled <- pooled[!is.na(pooled$marital_status),]
+# residential mobility
+pooled <- pooled[!pooled$residential_mobility %in% c(8,9),]
+pooled <- pooled[!is.na(pooled$residential_mobility),]
+# partisanship
+pooled <- pooled[!is.na(pooled$pid7),]
+# education
+pooled <- pooled[!is.na(pooled$educ),]
 
 ## consider Rs with no voter file as having no record of voting
 pooled$vv_turnout_gvm[pooled$vv_turnout_gvm == 'No Voter File'] <- 'No Record Of Voting'
 
 ## select relevant variables and filter years of interest
 pooled <- pooled %>% filter(year %in% c(2008, 2010, 2012, 2014, 2016)) %>% 
-  select(year, case_id, weight, state, pid7, gender, age, race, educ, vv_turnout_gvm, 
-         intent_pres_16, vote_history, intent, income, interest,registration, 
+  select(year, case_id, weight, state, gender, age, race, educ, vv_turnout_gvm, 
+         intent_pres_16, vote_history, intent, income_new, interest,registration, 
          religiosity, marital_status, residential_mobility, intent, gdp_growth, 
-         approval, incumbent, polarization) %>% 
-  rename(partisanship = pid7, education = educ, validated = vv_turnout_gvm, 
-         choice = intent_pres_16) %>% 
+         approval, incumbent, polarization, partisan_strength) %>% 
+  rename(education = educ, validated = vv_turnout_gvm, choice = intent_pres_16) %>% 
   mutate(validated = as.factor(validated),     # set all categorical variables as factors
          vote_history = as.factor(vote_history),
          intent = as.factor(intent),
          interest = as.factor(interest),
-         registration = as.factor(registration))
+         registration = as.factor(registration),
+         gender = as.factor(gender),
+         race = as.factor(race),
+         education  = as.factor(education),
+         income_new = as.factor(income_new),
+         religiosity = as.factor(religiosity),
+         marital_status = as.factor(marital_status),
+         residential_mobility = as.factor(residential_mobility),
+         partisan_strength = as.factor(partisan_strength),
+         incumbent = as.factor(incumbent),
+         polarization = as.factor(polarization))
 
 ############
 
