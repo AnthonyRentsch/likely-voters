@@ -1,8 +1,8 @@
 # The Elusive ‘Likely Voter’: Improving Prediction of Who Will Vote
 
-This repository contains all of the scripts I will use for the analysis portion of my thesis project. 
+This repository contains all of the scripts I will use for the analysis portion of my thesis project, which is being completed during the 2017-2018 academic year to satisfy University of Massachusetts Amherst Commonwealth Honors College requirements. 
 
-The thesis project is being completed during the 2017-2018 academic year to satisfy the University of Massachusetts Amherst Commonwealth Honors College requirements.
+This project is supported by the Society for Political Methodology's Advanced Empirical Research on Politics for Undergraduates Program (AERoPUP). Read more about that program [here](https://www.cambridge.org/core/membership/spm/about-us/awards/advanced-empirical-research-on-politics-for-undergraduates-program-aeropup).
 
 # Data
 
