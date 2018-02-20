@@ -57,7 +57,12 @@ data <- cces16 %>% select(V101, state_abbreviation, CC16_364, CC16_364b, CC16_36
 # merge vote choice for early/absentee voters and prospective voters
 data <- data %>% 
   mutate(choice = replace(choice, earlychoice == 1, 1)) %>% 
-  mutate(choice = replace(choice, earlychoice == 2, 2))
+  mutate(choice = replace(choice, earlychoice == 2, 2)) %>% 
+  mutate(choice = replace(choice, earlychoice == 3, 3)) %>% 
+  mutate(choice = replace(choice, earlychoice == 4, 4)) %>% 
+  mutate(choice = replace(choice, earlychoice == 5, 5)) %>% 
+  mutate(choice = replace(choice, earlychoice == 6, 6)) %>% 
+  mutate(choice = replace(choice, earlychoice == 7, 7))
 ```
 
 

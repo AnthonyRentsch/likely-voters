@@ -1,6 +1,6 @@
 Analysis Part I - Cutoff Models
 ================
-February 18, 2018
+February 20, 2018
 
 -   [Introduction](#introduction)
 -   [Vote Intent](#vote-intent)
@@ -16,6 +16,10 @@ February 18, 2018
     -   [Perry-Gallup index](#perry-gallup-index-1)
     -   [Perry-Gallup index + all variables potentially related to turnout](#perry-gallup-index-all-variables-potentially-related-to-turnout)
     -   [Perry-Gallup index + all variables potentially related to turnout + structural election variables](#perry-gallup-index-all-variables-potentially-related-to-turnout-structural-election-variables)
+-   [Random Forests](#random-forests)
+    -   [Perry-Gallup index](#perry-gallup-index-2)
+    -   [Perry-Gallup index + all variables potentially related to turnout](#perry-gallup-index-all-variables-potentially-related-to-turnout-1)
+    -   [Perry-Gallup index + all variables potentially related to turnout + structural election variables](#perry-gallup-index-all-variables-potentially-related-to-turnout-structural-election-variables-1)
 
 Introduction
 ============
@@ -223,3 +227,79 @@ You can read more about his model [here](https://www.washingtonpost.com/blogs/ez
 ### Election Predictions
 
 ![](cutoff_models_files/figure-markdown_github/unnamed-chunk-25-1.png)
+
+Random Forests
+==============
+
+For this section I will proceed as I did in the last section, except now I use random forest models instead of logistic regression models. Again, the layout will be:
+
+-   Perry-Gallup index
+-   Perry-Gallup index + all variables potentially related to turnout
+-   Perry-Gallup + all variables potentially related to turnout + structural election variables
+
+Perry-Gallup index
+------------------
+
+### Individual-level turnout
+
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-27-1.png)
+
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-28-1.png)
+
+### Election Predictions
+
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-29-1.png)
+
+Perry-Gallup index + all variables potentially related to turnout
+-----------------------------------------------------------------
+
+This next model considers the Perry-Gallup index variables mentioned in the previous section in addition to a whole slew of demographic variables that literature has suggested may be tied to turnout or to misreporting voting intention. These include:
+
+-   Age
+-   Race
+-   Education
+-   Income
+-   Partisan strength
+-   Religiosity
+-   Marital status
+-   Residential mobility
+-   ~~Racial composition of district~~
+-   ~~Political interest/activism~~
+    -   ~~Watching news~~
+    -   ~~Reading newspaper~~
+
+The racial composition of district and political interest/activism items are not included in my model because they are not widely available on the CCES surveys I consider.
+
+### Individual-level turnout
+
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-31-1.png)
+
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-32-1.png)
+
+### Election Predictions
+
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-33-1.png)
+
+Perry-Gallup index + all variables potentially related to turnout + structural election variables
+-------------------------------------------------------------------------------------------------
+
+In addtion to the variables I included in the last mode, I now include structural election variables. I consider Abramowitz's Time-for-Change model. The model predicts the vote share for the candidate of the incumbent's party based on
+
+-   the net approval rating of the sitting President (using the final Gallup poll in June of the election year),
+-   the annualized growth rate of real GDP in the second quarter of the election year (taken from the U.S. Department of Commerce's Bureau of Economic Analysis)
+-   whether a first-term incumbent is running
+-   an indicator variables to measure the level of polarization (this was added in 2012): it is coded
+    -   1 if first-term incumbent running or open seat where incumbent president has net approval rating over 0
+    -   -1 if no first-term incumbent or incumbent president has net approval rating less than 0
+
+You can read more about his model [here](https://www.washingtonpost.com/blogs/ezra-klein/files/2012/08/abramowitz.pdf). Since I also use midterm election years, I calculate the net approval rating of each respondent's House of Representatives using an item on the CCES and consider the incumbency of this official for respondents in the 2010 and 2014 data sets.
+
+### Individual-level turnout
+
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-35-1.png)
+
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-36-1.png)
+
+### Election Predictions
+
+![](cutoff_models_files/figure-markdown_github/unnamed-chunk-37-1.png)

@@ -367,8 +367,9 @@ pooled <- pooled[!is.na(pooled$pid7),]
 # education
 pooled <- pooled[!is.na(pooled$educ),]
 
-## consider Rs with no voter file as having no record of voting
+## consider Rs with no voter file as having no record of voting and drop this empty class
 pooled$vv_turnout_gvm[pooled$vv_turnout_gvm == 'No Voter File'] <- 'No Record Of Voting'
+pooled$vv_turnout_gvm <- factor(pooled$vv_turnout_gvm)
 
 ## select relevant variables and filter years of interest
 pooled <- pooled %>% filter(year %in% c(2008, 2010, 2012, 2014, 2016)) %>% 
@@ -392,6 +393,14 @@ pooled <- pooled %>% filter(year %in% c(2008, 2010, 2012, 2014, 2016)) %>%
          partisan_strength = as.factor(partisan_strength),
          incumbent = as.factor(incumbent),
          polarization = as.factor(polarization))
+
+# calculate margin among validated voters from 2016 CCES
+pooled %>% 
+  filter(!choice %in% c("I Won't Vote In This Election"), !is.na(choice), validated == 'Voted') %>% 
+  #filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)"), validated == 'Voted') %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = n/sum(n))
 
 ############
 
