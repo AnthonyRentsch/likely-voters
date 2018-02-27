@@ -1,0 +1,234 @@
+---
+title: "Analysis Part II - State Models"
+date: "February 27, 2018"
+output:
+  github_document:
+    toc: true
+    #toc_float: true
+    toc_depth: 2
+    #collapsed: false
+    #smooth_scroll: false
+    df_print: kable
+---
+
+```{r setup, echo = FALSE, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::read_chunk('load.R')
+```
+
+```{r, echo = FALSE, include = FALSE}
+# run load.R 
+ <<load>> 
+```
+
+# Introduction
+
+This document will follow a similar format as `national_models` (view that [here](https://github.com/AnthonyRentsch/thesis_LikelyVoters/blob/master/national_models.md)). Again, the flow will be as follows:
+
+* Vote intent
+* Vote intent + vote history
+* Perry-Gallup index
+* Logistic regression
+    + Perry-Gallup
+    + Perry-Gallup + all variables potentially related to turnout 
+    + Perry-Gallup + all variables potentially related to turnout + structural election variables
+* Random forests
+    + Perry-Gallup
+    + Perry-Gallup + all variables potentially related to turnout 
+    + Perry-Gallup + all variables potentially related to turnout + structural election variables
+  
+In each section I will create a model and then evaluate how well it predicts voting behavior on an individual-level on a state-by-state basis. At the end, I will use these models to make election predictions for each state. The visualizations I make in this document will likely vary from those in `national_models` to account for the fact that I have to consider 50 instances of each model (one for each state) and not just one national model.
+
+Due to smaller sample sizes in some states in the 2016 CCES, I may choose to drop a handful of states or so from my analysis, which I will make clear if I choose to do so.
+
+```{r, echo = FALSE, warning = FALSE}
+pooled %>% count(state)
+```
+
+
+# Vote Intent
+
+## Individual-level turnout
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# create function
+validation_by_intent_state <- function(location, intention){
+  willvote <- pooled %>% 
+    filter(state == location, intent %in% intention)
+  wontvote <- pooled %>% 
+    filter(state == location) %>% 
+    anti_join(willvote, by = 'case_id')
+
+  pred_voters <- willvote %>% 
+    count(validated = (validated == 'Voted')) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  pred_nonvoters <- wontvote %>% 
+    count(validated = (validated == 'Voted')) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+    rename(voters = percent_v, nonvoters = percent_nv)
+}
+ # other set up
+all_states <- unique(pooled$state)
+
+df <- data.frame(model = vector(length = 0),
+                 states = vector(length = 0),
+                 true_positive = vector(length = 0),
+                 #false_positive = vector(length = 0),
+                 #false_negative = vector(length = 0),
+                 true_negative = vector(length = 0))
+
+
+for (i in all_states){
+# those who say they already voted
+mod1 <- validation_by_intent_state(i, 3)
+# those who say they will definitely vote or have voted already
+mod2 <- validation_by_intent_state(i, c(1,3))
+# those who say they will definitely vote, have voted already, or will probably vote
+mod3 <- validation_by_intent_state(i, c(1,2,3))
+# those who say they will definitely vote, have voted already, will probably vote, or who are undecided
+mod4 <- validation_by_intent_state(i, c(1,2,3,5))
+# all respondents in the sample
+mod5 <- validation_by_intent_state(i, c(1,2,3,4,5))
+
+mods <- list(mod1, mod2, mod3, mod4, mod5)
+
+temp <- data.frame(model = c("Already voted", "Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
+                 state = i,
+                 true_positive = vector(length = 5),
+                 #false_positive = vector(length = 5),
+                 #false_negative = vector(length = 5),
+                 true_negative = vector(length = 5))
+j <- 1
+while(j <= length(mods)){
+  temp$true_positive[j] <- mods[[j]]$voters[mods[[j]]$validated == "Yes"]
+  #df$false_positive[i] <- mods[[i]]$voters[mods[[j]]$validated == "No"]
+  #df$false_negative[i] <- mods[[i]]$nonvoters[mods[[j]]$validated == "Yes"]
+  temp$true_negative[j] <- mods[[j]]$nonvoters[mods[[j]]$validated == "No"]
+  j = j +1
+}
+                 
+temp$model <- factor(temp$model, levels = temp$model)
+
+df <- rbind(df, temp)
+}
+
+data <- df %>% gather(type, value, true_positive:true_negative) %>%
+  mutate(type = replace(type, type == 'true_positive', 'true positive'),
+         type = replace(type, type == 'true_negative', 'true negative'),
+         model2 = model) %>%
+  filter(type == "true positive")
+
+ggplot(data = data, aes(value, group = model)) +
+  geom_histogram(data = data[2:length(data)], aes(value, group = model2), fill = "grey") +
+  geom_histogram(fill = "black") +
+  facet_wrap(~model, labeller = label_wrap_gen()) +
+  #facet_wrap(c("model","type"), labeller = label_wrap_gen(multi_line=FALSE)) +
+  labs(x = "", y = "", title = "True positive rates for state-by-state vote intent models") +
+  scale_fill_grey() +
+  theme(legend.title=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+data <- df %>% gather(type, value, true_positive:true_negative) %>%
+  mutate(type = replace(type, type == 'true_positive', 'true positive'),
+         type = replace(type, type == 'true_negative', 'true negative'),
+         model2 = model) %>%
+  filter(type == "true negative")
+
+ggplot(data = data, aes(value, group = model)) +
+  geom_histogram(data = data[2:length(data)], aes(value, group = model2), fill = "grey") +
+  geom_histogram(fill = "black") +
+  facet_wrap(~model, labeller = label_wrap_gen()) +
+  #facet_wrap(c("model","type"), labeller = label_wrap_gen(multi_line=FALSE)) +
+  labs(x = "", y = "", title = "True negative rates for state-by-state vote intent models") +
+  scale_fill_grey() +
+  theme(legend.title=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+```
+
+
+## Election Predictions
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# create margin-calcuating function
+vote_choice_intent_state <- function(location, intention){
+  pooled %>% 
+  filter(state == location, intent %in% intention) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(100*n/sum(n),2)) %>% 
+  select(-n)
+}
+
+# other set up 
+all_states <- unique(pooled$state)
+df <- data.frame(model = vector(length = 0),
+                 state = vector(length = 0),
+                 margin = vector(length = 0))
+# loop
+for(i in all_states){
+mod1 <- vote_choice_intent_state(i, c(1,3))
+mod2 <- vote_choice_intent_state(i, c(1,2,3))
+mod3 <- vote_choice_intent_state(i, c(1,2,3,5))
+mod4 <- vote_choice_intent_state(i, c(1,2,3,4,5))
+
+mods <- list(mod1, mod2, mod3, mod4)
+
+temp <- data.frame(model = c("Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
+                 state = i,
+                 margin = vector(length = 4))
+
+j <- 1
+while(j <= length(mods)){
+  temp$margin[j] = mods[[j]]$vote_share[mods[[j]]$choice == "Hillary Clinton (Democrat)"] - mods[[j]]$vote_share[mods[[j]]$choice == "Donald Trump (Republican)"]
+  j = j + 1
+}
+
+temp$model <- factor(temp$model, levels = temp$model)
+
+df <- rbind(df, temp)
+}
+
+# calculate actual margins in each state among validated voters
+state_margins <- pooled %>% filter(year == 2016, validated == "Voted") %>% 
+  group_by(state, choice) %>%
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(100*n/sum(n),2)) %>% 
+  ungroup() %>% 
+  group_by(state) %>% 
+  mutate(margin = vote_share - lag(vote_share, default=first(vote_share))) %>% 
+  ungroup() %>% 
+  filter(choice == "Hillary Clinton (Democrat)") %>% 
+  select(state, margin)
+  
+# combine validated voter margins and model margins
+df <- left_join(df, state_margins, by = 'state') %>% 
+  rename(model_margin = margin.x, validated_margin = margin.y)
+
+# visualize
+ggplot(df) +
+  geom_point(aes(x = validated_margin, y = model_margin), alpha = 0.35) +
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  facet_wrap(~model, labeller = label_wrap_gen()) +
+  labs(x = "Clinton's validated margin of victory", 
+       y = "Clinton's predicted margin of victory", 
+       title = "State-by-state by margins vote intent") + 
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+
+

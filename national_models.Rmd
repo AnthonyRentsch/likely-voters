@@ -123,7 +123,7 @@ df %>% gather(type, value, true_positive:true_negative) %>%
   ggplot(aes(factor(model), value, fill = type)) +
   geom_bar(stat = "identity", position = "dodge") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  labs(x = "model", y = "", title = "Individual level vote validation by vote intent") +
+  labs(x = "", y = "", title = "Individual level vote validation by vote intent") +
   scale_fill_grey() +
   theme(legend.title=element_blank())
 ```
