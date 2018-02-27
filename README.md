@@ -15,6 +15,6 @@ This project is supported by the Society for Political Methodology's Advanced Em
 
 `raw-vote-intent.R` - Script where I look at how self-reported voting intentions changed among different racial groups between 2012 and 2016.
 
-`cutoff_models.Rmd` - Markdown file where I create/define cutoff likely voter models and evaluate their performance on an individual level and use them to make election predictions. View the output [here](https://github.com/AnthonyRentsch/thesis_LikelyVoters/blob/master/cutoff_models.md).
+`national_models.Rmd` - Markdown file where I create/define likely voter models and evaluate their performance on an individual level and use them to make election predictions. View the output [here](https://github.com/AnthonyRentsch/thesis_LikelyVoters/blob/master/national_models.md).
 
-`analysis_test.Rmd` - Test markdown file for cutoff models. This file only uses 2016 data throughout and is meant to be a draft of my analysis. View the output [here](https://github.com/AnthonyRentsch/thesis_LikelyVoters/blob/master/analysis_test.md).
+`analysis_test.Rmd` - Test markdown file for cutoff likely voter models. This file only uses 2016 data throughout and is meant to be a draft of my analysis. View the output [here](https://github.com/AnthonyRentsch/thesis_LikelyVoters/blob/master/analysis_test.md).
