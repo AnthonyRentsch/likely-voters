@@ -1,6 +1,6 @@
 ---
-title: "Analysis Part I - Cutoff Models"
-date: "February 20, 2018"
+title: "Analysis Part I - National Models"
+date: "February 26, 2018"
 output:
   github_document:
     toc: true
@@ -18,7 +18,7 @@ knitr::read_chunk('load.R')
 
 ```{r, echo = FALSE, include = FALSE}
 # run load.R 
-<<load>> 
+ <<load>> 
 ```
 
 # Introduction
@@ -515,7 +515,7 @@ For this section I will begin using the cumulative CCES file. I'll consider thre
 
 * Perry-Gallup index
 * Perry-Gallup index + all variables potentially related to turnout
-* Perry-Gallup + all variables potentially related to turnout + structural election variables
+* Perry-Gallup index + all variables potentially related to turnout + structural election variables
 
 Note that when I just consider the Perry-Gallup index I do make a similar adjustment for age and registration. For age, I define a variable `eligible` that is coded 1 if a respondent was old enough to vote in the previous presidential election and coded 0 if a respondent was not old enough to vote in the previous election. For registration, I recode the variable to be 1 if the respondent reported that they were registered to vote and 0 if they reported that they were not registered or if they did not know.
 
@@ -537,8 +537,8 @@ test$eligible[test$age < 22] <- 0
 test$eligible[test$age >= 22] <- 1
 
 # run unweighted model
-formula <- as.formula(validated ~ vote_history + intent + interest + registration + eligible)
-model_unweighted <- glm(formula, family = binomial(link = "logit"), data = train)
+formula <- as.formula(validated ~ vote_history*intent + interest + registration + eligible)
+model <- glm(formula, family = binomial(link = "logit"), data = train)
 
 # run weighted model
 svy.train <- svydesign(ids = ~ 1, data = train, weights = ~weight)
@@ -546,38 +546,38 @@ model_weighted <- svyglm(formula, design = svy.train, family = binomial)
 
 # apply the models to test data
 # unweighted
-predictions_unweighted <- cbind(test, predict(model_unweighted, newdata = test, type = "response"))
-predictions_unweighted <- as.data.frame(predictions_unweighted)
-predictions_unweighted <- predictions_unweighted %>% 
-  rename(response = 'predict(model_unweighted, newdata = test, type = \"response\")')
+predictions <- cbind(test, predict(model, newdata = test, type = "response"))
+predictions <- as.data.frame(predictions)
+predictions<- predictions %>% 
+  rename(response = 'predict(model, newdata = test, type = \"response\")')
 # weighted
-predictions_weighted <- cbind(test, predict(model_weighted, newdata = test, type = "response"))
-predictions_weighted <- as.data.frame(predictions_weighted)
+# predictions_weighted <- cbind(test, predict(model_weighted, newdata = test, type = "response"))
+# predictions_weighted <- as.data.frame(predictions_weighted)
 ```
 
 
 ### Individual-level turnout
 
 ```{r, echo = FALSE}
-ggplot(predictions_unweighted) +
+ggplot(predictions) +
   geom_histogram(aes(x = response), position = "identity", bins = 20) +
   coord_cartesian(xlim = c(0, 1)) +
-  labs(title = paste0("Predicted vote propensity scores for 2016 CCES holdout sample (N = ",
-                      nrow(predictions_unweighted), ")", sep = ""),
+  labs(title = paste0("Predicted vote propensity scores for 2016 CCES sample (N = ",
+                      nrow(predictions), ")", sep = ""),
        x = "Vote propensity score")
 ```
 
 
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
 # consider turnout rates from 0.01 to 0.99 by 1
-turnout_rates <- seq(from = 0.01, to = .99, by = 0.01)
+turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
 
 # calculate true positive and negative rates for each level of turnout
 validation_by_logreg <- function(turnout){
-  willvote <- predictions_unweighted %>% 
+  willvote <- predictions %>% 
     arrange(desc(response)) %>% 
-    top_n(round(nrow(predictions_unweighted)*turnout,0))
-  wontvote <- predictions_unweighted %>% 
+    top_n(round(nrow(predictions)*turnout,0))
+  wontvote <- predictions %>% 
     anti_join(willvote, by = "case_id")
 
   pred_voters <- willvote %>% 
@@ -615,7 +615,7 @@ true_pos_neg_rates_by_turnout %>%
   geom_line(aes(x = turnout_rates[i]*100, y = true_positive, lty = "True positive")) +
   geom_line(aes(x = turnout_rates[i]*100, y = true_negative, lty = "True negative")) +
   geom_vline(xintercept = 60.2, lty = 4) +
-  labs(title = "True positive and true negative rates for holdout sample",
+  labs(title = "True positive and true negative rates for 2016 CCES sample",
        x = "Turnout rate (%)",
        y = "",
        lty = "Type") +
@@ -624,10 +624,13 @@ true_pos_neg_rates_by_turnout %>%
 
 ### Election Predictions
 
+Note that I include two calculations here: in one, I consider the margin of victory for Clinton only weighted by the weighting variable included in the pooled CCES while in the other I consider the margin weighted by that weight times the vote propensity score from the model.
+
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# no propensity weight for margin
 vote_choice_logreg <- function(turnout){
-  predictions_unweighted %>% 
-  top_n(round(nrow(predictions_unweighted)*turnout,0), wt = response) %>% 
+  predictions %>% 
+  top_n(round(nrow(predictions)*turnout,0), wt = response) %>% 
   filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
                        "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
                        "I'm Not Sure")) %>% 
@@ -646,17 +649,45 @@ while(i <= length(turnout_rates)){
    i = i +1
 }
 
-margin_by_turnout %>% 
-  rename(margin = V1, i = V2) %>% 
-  ggplot() +
-  geom_point(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.25) +
+# margin weighted by propensity score
+vote_choice_logreg_weighted <- function(turnout){
+  predictions %>% 
+  top_n(round(nrow(predictions)*turnout,0), wt = response) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight*response)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+weighted_margin_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- vote_choice_logreg_weighted(turnout_rates[i])
+   weighted_margin_by_turnout[i,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+   weighted_margin_by_turnout[i,2] <- i
+   i = i +1
+}
+
+# visualize
+margin_by_turnout <- margin_by_turnout %>% rename(margin = V1, i = V2)
+weighted_margin_by_turnout <- weighted_margin_by_turnout %>% rename(margin = V1, i = V2)
+
+ggplot() +
+  geom_point(data = margin_by_turnout, 
+             aes(x = turnout_rates[i]*100, y = margin, colour = "unweighted"), alpha = 0.5) +
+  geom_point(data = weighted_margin_by_turnout, 
+             aes(x = turnout_rates[i]*100, y = margin, colour = "weighted"), alpha = 0.5) +
   geom_hline(yintercept = 4.4, lty = 2, col = "red") +
   #coord_cartesian(xlim = c(25, 100)) +
-  labs(title = paste0("Clinton's predicted margin of victory computed from holdout sample (N = ",
-                      nrow(predictions_unweighted), ")", sep = ""),
+  labs(title = paste0("Clinton's predicted margin of victory computed from 2016 CCES sample (N = ",
+                      nrow(predictions), ")", sep = ""),
        x = "Turnout (%)",
        y = "Clinton's predicted margin of victory")
 ```
+
 
 ## Perry-Gallup index + all variables potentially related to turnout
 
@@ -683,49 +714,49 @@ train <- pooled %>% filter(year %in% c(2008,2010,2012,2014))
 test <- pooled %>% filter(year == 2016)
 
 # run unweighted model
-formula <- as.formula(validated ~ vote_history + intent + interest + registration + 
+formula <- as.formula(validated ~ vote_history*intent + interest + registration + 
                         gender + age + race + education + income_new + 
                         partisan_strength + religiosity + marital_status +
                         residential_mobility)
-model_unweighted <- glm(formula, family = binomial(link = "logit"), data = train)
+model <- glm(formula, family = binomial(link = "logit"), data = train)
 
 # run weighted model
-svy.train <- svydesign(ids = ~ 1, data = train, weights = ~weight)
-model_weighted <- svyglm(formula, design = svy.train, family = binomial)
+# svy.train <- svydesign(ids = ~ 1, data = train, weights = ~weight)
+# model_weighted <- svyglm(formula, design = svy.train, family = binomial)
 
 # apply the models to test data
 # unweighted
-predictions_unweighted <- cbind(test, predict(model_unweighted, newdata = test, type = "response"))
-predictions_unweighted <- as.data.frame(predictions_unweighted)
-predictions_unweighted <- predictions_unweighted %>% 
-  rename(response = 'predict(model_unweighted, newdata = test, type = \"response\")')
+predictions <- cbind(test, predict(model, newdata = test, type = "response"))
+predictions <- as.data.frame(predictions)
+predictions <- predictions %>% 
+  rename(response = 'predict(model, newdata = test, type = \"response\")')
 # weighted
-predictions_weighted <- cbind(test, predict(model_weighted, newdata = test, type = "response"))
-predictions_weighted <- as.data.frame(predictions_weighted)
+# predictions_weighted <- cbind(test, predict(model_weighted, newdata = test, type = "response"))
+# predictions_weighted <- as.data.frame(predictions_weighted)
 ```
 
 ### Individual-level turnout
 
 ```{r, echo = FALSE, warning = FALSE}
-ggplot(predictions_unweighted) +
+ggplot(predictions) +
   geom_histogram(aes(x = response), position = "identity", bins = 20) +
   coord_cartesian(xlim = c(0, 1)) +
   labs(title = paste0("Predicted vote propensity scores for 2016 CCES holdout sample (N = ",
-                      nrow(predictions_unweighted), ")", sep = ""),
+                      nrow(predictions), ")", sep = ""),
        x = "Vote propensity score")
 ```
 
 
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
 # consider turnout rates from 0.01 to 0.99 by 1
-turnout_rates <- seq(from = 0.01, to = .99, by = 0.01)
+turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
 
 # calculate true positive and negative rates for each level of turnout
 validation_by_logreg <- function(turnout){
-  willvote <- predictions_unweighted %>% 
+  willvote <- predictions %>% 
     arrange(desc(response)) %>% 
-    top_n(round(nrow(predictions_unweighted)*turnout,0))
-  wontvote <- predictions_unweighted %>% 
+    top_n(round(nrow(predictions)*turnout,0))
+  wontvote <- predictions %>% 
     anti_join(willvote, by = "case_id")
 
   pred_voters <- willvote %>% 
@@ -772,10 +803,11 @@ true_pos_neg_rates_by_turnout %>%
 
 ### Election Predictions
 
-```{r, echo = FALSE, message = FALSE, warning = FALSE}
+````{r, echo = FALSE, message = FALSE, warning = FALSE}
+# no propensity weight for margin
 vote_choice_logreg <- function(turnout){
-  predictions_unweighted %>% 
-  top_n(round(nrow(predictions_unweighted)*turnout,0), wt = response) %>% 
+  predictions %>% 
+  top_n(round(nrow(predictions)*turnout,0), wt = response) %>% 
   filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
                        "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
                        "I'm Not Sure")) %>% 
@@ -794,16 +826,44 @@ while(i <= length(turnout_rates)){
    i = i +1
 }
 
-margin_by_turnout %>% 
-  rename(margin = V1, i = V2) %>% 
-  ggplot() +
-  geom_point(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.25) +
+# margin weighted by propensity score
+vote_choice_logreg_weighted <- function(turnout){
+  predictions %>% 
+  top_n(round(nrow(predictions)*turnout,0), wt = response) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight*response)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+weighted_margin_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- vote_choice_logreg_weighted(turnout_rates[i])
+   weighted_margin_by_turnout[i,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+   weighted_margin_by_turnout[i,2] <- i
+   i = i +1
+}
+
+# visualize
+margin_by_turnout <- margin_by_turnout %>% rename(margin = V1, i = V2)
+weighted_margin_by_turnout <- weighted_margin_by_turnout %>% rename(margin = V1, i = V2)
+
+ggplot() +
+  geom_point(data = margin_by_turnout, 
+             aes(x = turnout_rates[i]*100, y = margin, colour = "unweighted"), alpha = 0.5) +
+  geom_point(data = weighted_margin_by_turnout, 
+             aes(x = turnout_rates[i]*100, y = margin, colour = "weighted"), alpha = 0.5) +
   geom_hline(yintercept = 4.4, lty = 2, col = "red") +
   #coord_cartesian(xlim = c(25, 100)) +
-  labs(title = paste0("Clinton's predicted margin of victory computed from holdout sample (N = ",
-                      nrow(predictions_unweighted), ")", sep = ""),
+  labs(title = paste0("Clinton's predicted margin of victory computed from 2016 CCES sample (N = ",
+                      nrow(predictions), ")", sep = ""),
        x = "Turnout (%)",
-       y = "Clinton's predicted margin of victory")
+       y = "Clinton's predicted margin of victory") +
+  theme(legend.title=element_blank())
 ```
 
 
@@ -826,23 +886,23 @@ train <- pooled %>% filter(year %in% c(2008,2010,2012,2014))
 test <- pooled %>% filter(year == 2016)
 
 # run unweighted model
-formula <- as.formula(validated ~ vote_history + intent + interest + registration + 
+formula <- as.formula(validated ~ vote_history*intent + interest + registration + 
                         gender + age + race + education + income_new + 
                         partisan_strength + religiosity + marital_status +
                         residential_mobility + gdp_growth + approval + incumbent +
                         polarization)
-model_unweighted <- glm(formula, family = binomial(link = "logit"), data = train)
+model <- glm(formula, family = binomial(link = "logit"), data = train)
 
 # run weighted model
-svy.train <- svydesign(ids = ~ 1, data = train, weights = ~weight)
-model_weighted <- svyglm(formula, design = svy.train, family = binomial)
+# svy.train <- svydesign(ids = ~ 1, data = train, weights = ~weight)
+# model_weighted <- svyglm(formula, design = svy.train, family = binomial)
 
 # apply the models to test data
 # unweighted
-predictions_unweighted <- cbind(test, predict(model_unweighted, newdata = test, type = "response"))
-predictions_unweighted <- as.data.frame(predictions_unweighted)
-predictions_unweighted <- predictions_unweighted %>% 
-  rename(response = 'predict(model_unweighted, newdata = test, type = \"response\")')
+predictions <- cbind(test, predict(model, newdata = test, type = "response"))
+predictions <- as.data.frame(predictions)
+predictions <- predictions %>% 
+  rename(response = 'predict(model, newdata = test, type = \"response\")')
 # weighted
 # predictions_weighted <- cbind(test, predict(model_weighted, newdata = test, type = "response"))
 # predictions_weighted <- as.data.frame(predictions_weighted)
@@ -851,25 +911,25 @@ predictions_unweighted <- predictions_unweighted %>%
 ### Individual-level turnout
 
 ```{r, echo = FALSE, warning = FALSE}
-ggplot(predictions_unweighted) +
+ggplot(predictions) +
   geom_histogram(aes(x = response), position = "identity", bins = 20) +
   coord_cartesian(xlim = c(0, 1)) +
   labs(title = paste0("Predicted vote propensity scores for 2016 CCES holdout sample (N = ",
-                      nrow(predictions_unweighted), ")", sep = ""),
+                      nrow(predictions), ")", sep = ""),
        x = "Vote propensity score")
 ```
 
 
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
 # consider turnout rates from 0.01 to 0.99 by 1
-turnout_rates <- seq(from = 0.01, to = .99, by = 0.01)
+turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
 
 # calculate true positive and negative rates for each level of turnout
 validation_by_logreg <- function(turnout){
-  willvote <- predictions_unweighted %>% 
+  willvote <- predictions %>% 
     arrange(desc(response)) %>% 
-    top_n(round(nrow(predictions_unweighted)*turnout,0))
-  wontvote <- predictions_unweighted %>% 
+    top_n(round(nrow(predictions)*turnout,0))
+  wontvote <- predictions %>% 
     anti_join(willvote, by = "case_id")
 
   pred_voters <- willvote %>% 
@@ -917,9 +977,10 @@ true_pos_neg_rates_by_turnout %>%
 ### Election Predictions
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# no propensity weight for margin
 vote_choice_logreg <- function(turnout){
-  predictions_unweighted %>% 
-  top_n(round(nrow(predictions_unweighted)*turnout,0), wt = response) %>% 
+  predictions %>% 
+  top_n(round(nrow(predictions)*turnout,0), wt = response) %>% 
   filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
                        "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
                        "I'm Not Sure")) %>% 
@@ -938,16 +999,44 @@ while(i <= length(turnout_rates)){
    i = i +1
 }
 
-margin_by_turnout %>% 
-  rename(margin = V1, i = V2) %>% 
-  ggplot() +
-  geom_point(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.25) +
+# margin weighted by propensity score
+vote_choice_logreg_weighted <- function(turnout){
+  predictions %>% 
+  top_n(round(nrow(predictions)*turnout,0), wt = response) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight*response)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+weighted_margin_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- vote_choice_logreg_weighted(turnout_rates[i])
+   weighted_margin_by_turnout[i,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+   weighted_margin_by_turnout[i,2] <- i
+   i = i +1
+}
+
+# visualize
+margin_by_turnout <- margin_by_turnout %>% rename(margin = V1, i = V2)
+weighted_margin_by_turnout <- weighted_margin_by_turnout %>% rename(margin = V1, i = V2)
+
+ggplot() +
+  geom_point(data = margin_by_turnout, 
+             aes(x = turnout_rates[i]*100, y = margin, colour = "unweighted"), alpha = 0.5) +
+  geom_point(data = weighted_margin_by_turnout, 
+             aes(x = turnout_rates[i]*100, y = margin, colour = "weighted"), alpha = 0.5) +
   geom_hline(yintercept = 4.4, lty = 2, col = "red") +
   #coord_cartesian(xlim = c(25, 100)) +
-  labs(title = paste0("Clinton's predicted margin of victory computed from holdout sample (N = ",
-                      nrow(predictions_unweighted), ")", sep = ""),
+  labs(title = paste0("Clinton's predicted margin of victory computed from 2016 CCES sample (N = ",
+                      nrow(predictions), ")", sep = ""),
        x = "Turnout (%)",
-       y = "Clinton's predicted margin of victory")
+       y = "Clinton's predicted margin of victory") +
+  theme(legend.title=element_blank())
 ```
 
 
@@ -957,7 +1046,7 @@ For this section I will proceed as I did in the last section, except now I use r
 
 * Perry-Gallup index
 * Perry-Gallup index + all variables potentially related to turnout
-* Perry-Gallup + all variables potentially related to turnout + structural election variables
+* Perry-Gallup index + all variables potentially related to turnout + structural election variables
 
 
 ## Perry-Gallup index
@@ -994,14 +1083,14 @@ ggplot(predictions) +
   geom_histogram(aes(x = Voted), position = "identity", bins = 20) +
   coord_cartesian(xlim = c(0, 1)) +
   labs(title = paste0("Predicted vote propensity scores for 2016 CCES holdout sample (N = ",
-                      nrow(predictions_unweighted), ")", sep = ""),
+                      nrow(predictions), ")", sep = ""),
        x = "Vote propensity score")
 ```
 
 
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
 # consider turnout rates from 0.01 to 0.99 by 1
-turnout_rates <- seq(from = 0.01, to = .99, by = 0.01)
+turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
 
 # calculate true positive and negative rates for each level of turnout
 validation_by_logreg <- function(turnout){
@@ -1056,6 +1145,7 @@ true_pos_neg_rates_by_turnout %>%
 ### Election Predictions
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# no propensity weight for margin
 vote_choice_logreg <- function(turnout){
   predictions %>% 
   top_n(round(nrow(predictions)*turnout,0), wt = Voted) %>% 
@@ -1077,16 +1167,44 @@ while(i <= length(turnout_rates)){
    i = i +1
 }
 
-margin_by_turnout %>% 
-  rename(margin = V1, i = V2) %>% 
-  ggplot() +
-  geom_point(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.25) +
+# margin weighted by propensity score
+vote_choice_logreg_weighted <- function(turnout){
+  predictions %>% 
+  top_n(round(nrow(predictions)*turnout,0), wt = Voted) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight*Voted)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+weighted_margin_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- vote_choice_logreg_weighted(turnout_rates[i])
+   weighted_margin_by_turnout[i,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+   weighted_margin_by_turnout[i,2] <- i
+   i = i +1
+}
+
+# visualize
+margin_by_turnout <- margin_by_turnout %>% rename(margin = V1, i = V2)
+weighted_margin_by_turnout <- weighted_margin_by_turnout %>% rename(margin = V1, i = V2)
+
+ggplot() +
+  geom_point(data = margin_by_turnout, 
+             aes(x = turnout_rates[i]*100, y = margin, colour = "unweighted"), alpha = 0.5) +
+  geom_point(data = weighted_margin_by_turnout, 
+             aes(x = turnout_rates[i]*100, y = margin, colour = "weighted"), alpha = 0.5) +
   geom_hline(yintercept = 4.4, lty = 2, col = "red") +
   #coord_cartesian(xlim = c(25, 100)) +
-  labs(title = paste0("Clinton's predicted margin of victory computed from holdout sample (N = ",
-                      nrow(predictions_unweighted), ")", sep = ""),
+  labs(title = paste0("Clinton's predicted margin of victory computed from 2016 CCES sample (N = ",
+                      nrow(predictions), ")", sep = ""),
        x = "Turnout (%)",
-       y = "Clinton's predicted margin of victory")
+       y = "Clinton's predicted margin of victory") +
+  theme(legend.title=element_blank())
 ```
 
 ## Perry-Gallup index + all variables potentially related to turnout
@@ -1132,14 +1250,14 @@ ggplot(predictions) +
   geom_histogram(aes(x = Voted), position = "identity", bins = 20) +
   coord_cartesian(xlim = c(0, 1)) +
   labs(title = paste0("Predicted vote propensity scores for 2016 CCES holdout sample (N = ",
-                      nrow(predictions_unweighted), ")", sep = ""),
+                      nrow(predictions), ")", sep = ""),
        x = "Vote propensity score")
 ```
 
 
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
 # consider turnout rates from 0.01 to 0.99 by 1
-turnout_rates <- seq(from = 0.01, to = .99, by = 0.01)
+turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
 
 # calculate true positive and negative rates for each level of turnout
 validation_by_logreg <- function(turnout){
@@ -1194,6 +1312,7 @@ true_pos_neg_rates_by_turnout %>%
 ### Election Predictions
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# no propensity weight for margin
 vote_choice_logreg <- function(turnout){
   predictions %>% 
   top_n(round(nrow(predictions)*turnout,0), wt = Voted) %>% 
@@ -1215,16 +1334,44 @@ while(i <= length(turnout_rates)){
    i = i +1
 }
 
-margin_by_turnout %>% 
-  rename(margin = V1, i = V2) %>% 
-  ggplot() +
-  geom_point(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.25) +
+# margin weighted by propensity score
+vote_choice_logreg_weighted <- function(turnout){
+  predictions %>% 
+  top_n(round(nrow(predictions)*turnout,0), wt = Voted) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight*Voted)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+weighted_margin_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- vote_choice_logreg_weighted(turnout_rates[i])
+   weighted_margin_by_turnout[i,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+   weighted_margin_by_turnout[i,2] <- i
+   i = i +1
+}
+
+# visualize
+margin_by_turnout <- margin_by_turnout %>% rename(margin = V1, i = V2)
+weighted_margin_by_turnout <- weighted_margin_by_turnout %>% rename(margin = V1, i = V2)
+
+ggplot() +
+  geom_point(data = margin_by_turnout, 
+             aes(x = turnout_rates[i]*100, y = margin, colour = "unweighted"), alpha = 0.5) +
+  geom_point(data = weighted_margin_by_turnout, 
+             aes(x = turnout_rates[i]*100, y = margin, colour = "weighted"), alpha = 0.5) +
   geom_hline(yintercept = 4.4, lty = 2, col = "red") +
   #coord_cartesian(xlim = c(25, 100)) +
-  labs(title = paste0("Clinton's predicted margin of victory computed from holdout sample (N = ",
-                      nrow(predictions_unweighted), ")", sep = ""),
+  labs(title = paste0("Clinton's predicted margin of victory computed from 2016 CCES sample (N = ",
+                      nrow(predictions), ")", sep = ""),
        x = "Turnout (%)",
-       y = "Clinton's predicted margin of victory")
+       y = "Clinton's predicted margin of victory") +
+  theme(legend.title=element_blank())
 ```
 
 
@@ -1272,8 +1419,8 @@ ggplot(predictions) +
 
 
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
-# consider turnout rates from 0.01 to 0.99 by 1
-turnout_rates <- seq(from = 0.01, to = .99, by = 0.01)
+# consider turnout rates from 0.01 to 1 by 1
+turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
 
 # calculate true positive and negative rates for each level of turnout
 validation_by_logreg <- function(turnout){
@@ -1328,6 +1475,7 @@ true_pos_neg_rates_by_turnout %>%
 ### Election Predictions
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# no propensity weight for margin
 vote_choice_logreg <- function(turnout){
   predictions %>% 
   top_n(round(nrow(predictions)*turnout,0), wt = Voted) %>% 
@@ -1349,15 +1497,43 @@ while(i <= length(turnout_rates)){
    i = i +1
 }
 
-margin_by_turnout %>% 
-  rename(margin = V1, i = V2) %>% 
-  ggplot() +
-  geom_point(aes(x = turnout_rates[i]*100, y = margin), alpha = 0.25) +
+# margin weighted by propensity score
+vote_choice_logreg_weighted <- function(turnout){
+  predictions %>% 
+  top_n(round(nrow(predictions)*turnout,0), wt = Voted) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight*Voted)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+weighted_margin_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- vote_choice_logreg_weighted(turnout_rates[i])
+   weighted_margin_by_turnout[i,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+   weighted_margin_by_turnout[i,2] <- i
+   i = i +1
+}
+
+# visualize
+margin_by_turnout <- margin_by_turnout %>% rename(margin = V1, i = V2)
+weighted_margin_by_turnout <- weighted_margin_by_turnout %>% rename(margin = V1, i = V2)
+
+ggplot() +
+  geom_point(data = margin_by_turnout, 
+             aes(x = turnout_rates[i]*100, y = margin, colour = "unweighted"), alpha = 0.5) +
+  geom_point(data = weighted_margin_by_turnout, 
+             aes(x = turnout_rates[i]*100, y = margin, colour = "weighted"), alpha = 0.5) +
   geom_hline(yintercept = 4.4, lty = 2, col = "red") +
   #coord_cartesian(xlim = c(25, 100)) +
-  labs(title = paste0("Clinton's predicted margin of victory computed from holdout sample (N = ",
-                      nrow(predictions_unweighted), ")", sep = ""),
+  labs(title = paste0("Clinton's predicted margin of victory computed from 2016 CCES sample (N = ",
+                      nrow(predictions), ")", sep = ""),
        x = "Turnout (%)",
-       y = "Clinton's predicted margin of victory")
+       y = "Clinton's predicted margin of victory") +
+  theme(legend.title=element_blank())
 ```
 
