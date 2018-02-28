@@ -1,11 +1,13 @@
 Analysis Part II - State Models
 ================
-February 27, 2018
+February 28, 2018
 
 -   [Introduction](#introduction)
 -   [Vote Intent](#vote-intent)
     -   [Individual-level turnout](#individual-level-turnout)
     -   [Election Predictions](#election-predictions)
+-   [Vote Intent + Vote History](#vote-intent-vote-history)
+    -   [Election Predictions](#election-predictions-1)
 
 Introduction
 ============
@@ -24,7 +26,7 @@ This document will follow a similar format as `national_models` (view that [here
     -   Perry-Gallup + all variables potentially related to turnout
     -   Perry-Gallup + all variables potentially related to turnout + structural election variables
 
-In each section I will create a model and then evaluate how well it predicts voting behavior on an individual-level on a state-by-state basis. At the end, I will use these models to make election predictions for each state. The visualizations I make in this document will likely vary from those in `national_models` to account for the fact that I have to consider 50 instances of each model (one for each state) and not just one national model.
+In each section I will create a model and then evaluate how well it predicts voting behavior on an individual-level on a state-by-state basis. At the end, I will use these models to make election predictions for each state. The visualizations I make in this document will likely vary from those in `national_models` to account for the fact that I have to consider 51 instances of each model (one for each state and D.C.) and not just one national model.
 
 Due to smaller sample sizes in some states in the 2016 CCES, I may choose to drop a handful of states or so from my analysis, which I will make clear if I choose to do so.
 
@@ -96,3 +98,35 @@ Election Predictions
 --------------------
 
 ![](state_models_files/figure-markdown_github/unnamed-chunk-5-1.png)
+
+Clinton's chances are overestimated by an average of 2.43 points, across all vote intent model types. Breaking it down by type:
+
+| model                                                        |  predicted - validated|
+|:-------------------------------------------------------------|----------------------:|
+| Already voted + will definitely vote                         |               2.411961|
+| Already voted + will definitely or probably vote             |               2.628627|
+| Already voted + will definitely or probably vote + undecided |               2.392745|
+| All respondents                                              |               2.288039|
+
+Vote Intent + Vote History
+==========================
+
+This section will necessarily exclude all respondents who were not old enough to vote in the 2012 election (are 22 years old or younger now).
+
+![](state_models_files/figure-markdown_github/unnamed-chunk-7-1.png)
+
+![](state_models_files/figure-markdown_github/unnamed-chunk-8-1.png)
+
+Election Predictions
+--------------------
+
+![](state_models_files/figure-markdown_github/unnamed-chunk-9-1.png)
+
+Looks like this overestimates Clinton's chances a bit. The average difference between a state's predicted margin and margin among validated voters is a little over 2.5 points in favor of Clinton, across all model types. Looking at specific model types:
+
+| model                                                        |  predicted - validated|
+|:-------------------------------------------------------------|----------------------:|
+| Already voted + will definitely vote                         |               2.491078|
+| Already voted + will definitely or probably vote             |               2.634608|
+| Already voted + will definitely or probably vote + undecided |               2.563137|
+| All respondents                                              |               2.560196|

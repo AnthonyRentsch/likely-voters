@@ -1,6 +1,6 @@
 ---
 title: "Analysis Part I - National Models"
-date: "February 26, 2018"
+date: "February 27, 2018"
 output:
   github_document:
     toc: true
@@ -190,7 +190,7 @@ Note that this will necessarily exclude any respondent who was too young to vote
 validation_intent_history <- function(intention, history){
   willvote <- pooled %>% 
     filter(intent %in% intention, vote_history %in% history 
-           #| age <= 22
+           # age <= 22
            )
   wontvote <- pooled %>% 
     anti_join(willvote, by = "case_id")
