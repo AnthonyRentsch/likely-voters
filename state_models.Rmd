@@ -18,7 +18,7 @@ knitr::read_chunk('load.R')
 
 ```{r, echo = FALSE, include = FALSE}
 # run load.R 
- <<load>> 
+<<load>> 
 ```
 
 # Introduction
@@ -121,6 +121,7 @@ temp$model <- factor(temp$model, levels = temp$model)
 df <- rbind(df, temp)
 }
 
+# visualize
 data <- df %>% gather(type, value, true_positive:true_negative) %>%
   mutate(type = replace(type, type == 'true_positive', 'true positive'),
          type = replace(type, type == 'true_negative', 'true negative'),
@@ -238,6 +239,8 @@ df %>% group_by(model) %>% summarise('predicted - validated' = mean(model_margin
 # Vote Intent + Vote History
 
 This section will necessarily exclude all respondents who were not old enough to vote in the 2012 election (are 22 years old or younger now).
+
+## Individual-level turnout
 
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
 validation_intent_history_state <- function(location, intention, history){
@@ -450,4 +453,181 @@ Looks like this overestimates Clinton's chances a bit. The average difference be
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
 df %>% group_by(model) %>% summarise('predicted - validated' = mean(model_margin - validated_margin))
 ```
+
+# Perry-Gallup Index
+
+Not many states have a large number of people with a Perry-Gallup index of 6, so I'll combine the 5s and 6s for each state.
+
+## Individual-level turnout
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# create function to check individual-level voting predictions
+validation_by_pg_state <- function(location, index) {
+  willvote <- pooled %>% 
+    filter(state == location, perry_gallup %in% index)
+  wontvote <- pooled %>% 
+    filter(state == location) %>% 
+    anti_join(willvote, by = "case_id")
+
+  pred_voters <- willvote %>% 
+    count(validated = (validated == 'Voted')) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  pred_nonvoters <- wontvote %>% 
+    count(validated = (validated == 'Voted')) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+    rename(voters = percent_v, nonvoters = percent_nv)
+}
+
+# set up work
+all_states <- unique(pooled$state)
+df <- data.frame(model = vector(length = 0),
+                 state = vector(length = 0),
+                 true_positive = vector(length = 0),
+                 true_negative = vector(length = 0))
+
+# loop through all states
+
+for(i in all_states){
+mod1 <- validation_by_pg_state(i, c(6,5))
+mod2 <- validation_by_pg_state(i, c(6,5,4))
+mod3 <- validation_by_pg_state(i, c(6,5,4,3))
+mod4 <- validation_by_pg_state(i, c(6,5,4,3,2))
+mod5 <- validation_by_pg_state(i, c(6,5,4,3,2,1))
+
+mods <- list(mod1, mod2, mod3, mod4, mod5)
+
+temp <- data.frame(model = c("6s and 5s","6s, 5s, and 4s","6s, 5s, 4s, and 3s", 
+                           "6s, 5s, 4s, 3s, and 2s","All"),
+                 state = i,
+                 true_positive = vector(length = 5),
+                 true_negative = vector(length = 5))
+j <- 1
+while(j <= length(mods)){
+  temp$true_positive[j] <- mods[[j]]$voters[mods[[j]]$validated == "Yes"]
+  temp$true_negative[j] <- mods[[j]]$nonvoters[mods[[j]]$validated == "No"]
+  j = j + 1
+}
+                 
+temp$model <- factor(temp$model, levels = temp$model)
+df <- rbind(df, temp)
+}
+
+# visualize
+data <- df %>% gather(type, value, true_positive:true_negative) %>%
+  mutate(type = replace(type, type == 'true_positive', 'true positive'),
+         type = replace(type, type == 'true_negative', 'true negative'),
+         model2 = model) %>%
+  filter(type == "true positive")
+
+ggplot(data = data, aes(value, group = model)) +
+  geom_histogram(data = data[2:length(data)], aes(value, group = model2), fill = "grey") +
+  geom_histogram(fill = "black") +
+  facet_wrap(~model, labeller = label_wrap_gen()) +
+  #facet_wrap(c("model","type"), labeller = label_wrap_gen(multi_line=FALSE)) +
+  labs(x = "", y = "", title = "True positive rates for state-by-state Perry-Gallup index models") +
+  scale_fill_grey() +
+  theme(legend.title=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+data <- df %>% gather(type, value, true_positive:true_negative) %>%
+  mutate(type = replace(type, type == 'true_positive', 'true positive'),
+         type = replace(type, type == 'true_negative', 'true negative'),
+         model2 = model) %>%
+  filter(type == "true negative")
+
+ggplot(data = data, aes(value, group = model)) +
+  geom_histogram(data = data[2:length(data)], aes(value, group = model2), fill = "grey") +
+  geom_histogram(fill = "black") +
+  facet_wrap(~model, labeller = label_wrap_gen()) +
+  #facet_wrap(c("model","type"), labeller = label_wrap_gen(multi_line=FALSE)) +
+  labs(x = "", y = "", title = "True negative rates for state-by-state Perry-Gallup index models") +
+  scale_fill_grey() +
+  theme(legend.title=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+```
+
+
+## Election Predictions
+
+```{r, echo = FALSE, warning = FALSE}
+# create function to calculate margin
+vote_choice_pg_state <- function(location, index){
+  pooled %>% 
+  filter(state == location, perry_gallup %in% index) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+# set up work
+all_states <- unique(pooled$state)
+df <- data.frame(model = vector(length = 0),
+                 state = vector(length = 0),
+                 margin = vector(length = 0))
+
+# loop
+for(i in all_states){
+mod1 <- vote_choice_pg_state(i, c(6,5))
+mod2 <- vote_choice_pg_state(i, c(6,5,4))
+mod3 <- vote_choice_pg_state(i, c(6,5,4,3))
+mod4 <- vote_choice_pg_state(i, c(6,5,4,3,2))
+mod5 <- vote_choice_pg_state(i, c(6,5,4,3,2,1))
+
+mods <- list(mod1, mod2, mod3, mod4, mod5)
+
+temp <- data.frame(model = c("6s and 5s","6s, 5s, and 4s","6s, 5s, 4s, and 3s", 
+                           "6s, 5s, 4s, 3s, and 2s","All"),
+                 state = i,
+                 margin = vector(length = 5))
+
+j <- 1
+while(j <= length(mods)){
+  temp$margin[j] = mods[[j]]$vote_share[mods[[j]]$choice == "Hillary Clinton (Democrat)"] - mods[[j]]$vote_share[mods[[j]]$choice == "Donald Trump (Republican)"]
+  j = j + 1
+}
+
+temp$model <- factor(temp$model, levels = temp$model)
+df <- rbind(df, temp)
+}
+
+# combine validated voter margins and model margins
+df <- left_join(df, state_margins, by = 'state') %>% 
+  rename(model_margin = margin.x, validated_margin = margin.y)
+
+# visualize
+df %>% 
+  ggplot() +
+  geom_point(aes(x = validated_margin, y = model_margin), alpha = 0.35) +
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  facet_wrap(~model, labeller = label_wrap_gen()) +
+  labs(x = "Clinton's validated margin of victory", 
+       y = "Clinton's predicted margin of victory", 
+       title = "State-by-state margins by Perry-Gallup index") + 
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+df %>% group_by(model) %>% summarise('predicted - validated' = mean(model_margin - validated_margin))
+```
+
+
+# Logistic Regression
+
+## Individual-level turnout
 

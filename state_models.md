@@ -7,7 +7,13 @@ February 28, 2018
     -   [Individual-level turnout](#individual-level-turnout)
     -   [Election Predictions](#election-predictions)
 -   [Vote Intent + Vote History](#vote-intent-vote-history)
+    -   [Individual-level turnout](#individual-level-turnout-1)
     -   [Election Predictions](#election-predictions-1)
+-   [Perry-Gallup Index](#perry-gallup-index)
+    -   [Individual-level turnout](#individual-level-turnout-2)
+    -   [Election Predictions](#election-predictions-2)
+-   [Logistic Regression](#logistic-regression)
+    -   [Individual-level turnout](#individual-level-turnout-3)
 
 Introduction
 ============
@@ -113,6 +119,9 @@ Vote Intent + Vote History
 
 This section will necessarily exclude all respondents who were not old enough to vote in the 2012 election (are 22 years old or younger now).
 
+Individual-level turnout
+------------------------
+
 ![](state_models_files/figure-markdown_github/unnamed-chunk-7-1.png)
 
 ![](state_models_files/figure-markdown_github/unnamed-chunk-8-1.png)
@@ -130,3 +139,34 @@ Looks like this overestimates Clinton's chances a bit. The average difference be
 | Already voted + will definitely or probably vote             |               2.634608|
 | Already voted + will definitely or probably vote + undecided |               2.563137|
 | All respondents                                              |               2.560196|
+
+Perry-Gallup Index
+==================
+
+Not many states have a large number of people with a Perry-Gallup index of 6, so I'll combine the 5s and 6s for each state.
+
+Individual-level turnout
+------------------------
+
+![](state_models_files/figure-markdown_github/unnamed-chunk-11-1.png)
+
+![](state_models_files/figure-markdown_github/unnamed-chunk-12-1.png)
+
+Election Predictions
+--------------------
+
+![](state_models_files/figure-markdown_github/unnamed-chunk-13-1.png)
+
+| model                  |  predicted - validated|
+|:-----------------------|----------------------:|
+| 6s and 5s              |              -2.349608|
+| 6s, 5s, and 4s         |               1.449804|
+| 6s, 5s, 4s, and 3s     |               2.405490|
+| 6s, 5s, 4s, 3s, and 2s |               2.397255|
+| All                    |               2.282157|
+
+Logistic Regression
+===================
+
+Individual-level turnout
+------------------------

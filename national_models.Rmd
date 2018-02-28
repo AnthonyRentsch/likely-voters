@@ -382,28 +382,6 @@ There are two further adjustments I make. First, Pew samples off of a list of re
 
 The minimum score, corresponding to those least likely to vote, is 0 while the maximum score, corresponding to those most likely to vote, is 6.
 
-```{r, echo = FALSE, warning = FALSE}
-# initialize Perry-Gallup index
-pooled <- pooled %>% mutate(perry_gallup = 0)
-
-# vote intent
-pooled$perry_gallup[!is.na(pooled$intent) & (pooled$intent == 1 | pooled$intent == 3)] <- pooled$perry_gallup + 2
-pooled$perry_gallup[!is.na(pooled$intent) & pooled$intent == 2]  <- pooled$perry_gallup + 1
-
-# vote history
-pooled$perry_gallup[!is.na(pooled$vote_history) & pooled$vote_history == 4] <- pooled$perry_gallup + 1
-
-# political interest
-pooled$perry_gallup[!is.na(pooled$interest) & pooled$interest == 1] <- pooled$perry_gallup + 2
-pooled$perry_gallup[!is.na(pooled$interest) & pooled$interest == 2] <- pooled$perry_gallup + 1
-
-# voter registration 
-pooled$perry_gallup[pooled$registration == 1] <- pooled$perry_gallup + 1
-
-# age adjustment
-pooled$perry_gallup[pooled$age < 22 && pooled$vote_history == 0] <- pooled$perry_gallup + 1
-```
-
 ## Individual-level turnout
 
 ```{r, echo = FALSE, warning = FALSE}
@@ -525,16 +503,6 @@ Note that when I just consider the Perry-Gallup index I do make a similar adjust
 # create training set 
 train <- pooled %>% filter(year %in% c(2008,2010,2012,2014))
 test <- pooled %>% filter(year == 2016)
-
-# create eligible variable
-# train
-train$eligible[train$year %in% c(2008, 2012) & train$age < 22] <- 0
-train$eligible[train$year %in% c(2008, 2012) & train$age >= 22] <- 1
-train$eligible[train$year %in% c(2010, 2014) & train$age < 20] <- 0
-train$eligible[train$year %in% c(2010, 2014) & train$age >= 20] <- 1
-# test
-test$eligible[test$age < 22] <- 0
-test$eligible[test$age >= 22] <- 1
 
 # run unweighted model
 formula <- as.formula(validated ~ vote_history*intent + interest + registration + eligible)

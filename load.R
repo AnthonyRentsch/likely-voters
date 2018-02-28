@@ -401,6 +401,40 @@ pooled <- pooled %>% filter(year %in% c(2008, 2010, 2012, 2014, 2016)) %>%
          incumbent = as.factor(incumbent),
          polarization = as.factor(polarization))
 
+
+# calculate Prerry-Gallup index
+# initialize Perry-Gallup index
+pooled <- pooled %>% mutate(perry_gallup = 0)
+
+# vote intent
+pooled$perry_gallup[!is.na(pooled$intent) & (pooled$intent == 1 | pooled$intent == 3)] <- pooled$perry_gallup[!is.na(pooled$intent) & (pooled$intent == 1 | pooled$intent == 3)]  + 2
+pooled$perry_gallup[!is.na(pooled$intent) & pooled$intent == 2]  <- pooled$perry_gallup[!is.na(pooled$intent) & pooled$intent == 2] + 1
+
+# vote history
+pooled$perry_gallup[!is.na(pooled$vote_history) & pooled$vote_history == 1] <- pooled$perry_gallup[!is.na(pooled$vote_history) & pooled$vote_history == 1] + 1
+
+# political interest
+pooled$perry_gallup[!is.na(pooled$interest) & pooled$interest == 1] <- pooled$perry_gallup[!is.na(pooled$interest) & pooled$interest == 1] + 2
+pooled$perry_gallup[!is.na(pooled$interest) & pooled$interest == 2] <- pooled$perry_gallup[!is.na(pooled$interest) & pooled$interest == 2] + 1
+
+# voter registration 
+pooled$perry_gallup[pooled$registration == 1] <- pooled$perry_gallup[pooled$registration == 1] + 1
+
+# age adjustment
+pooled$perry_gallup[pooled$age < 22 && pooled$vote_history == 0] <- pooled$perry_gallup[pooled$age < 22 && pooled$vote_history == 0] + 1
+
+
+# create eligible variable, to be used in logistic regression Perry-Gallup section
+# create eligible variable
+# train
+pooled <- pooled %>% mutate(eligible = 0)
+pooled$eligible[pooled$year %in% c(2008, 2012) & pooled$age < 22] <- 0
+pooled$eligible[pooled$year %in% c(2008, 2012) & pooled$age >= 22] <- 1
+pooled$eligible[pooled$year %in% c(2010, 2014) & pooled$age < 20] <- 0
+pooled$eligible[pooled$year %in% c(2010, 2014) & pooled$age >= 20] <- 1
+pooled$eligible[pooled$year == 2016 & pooled$age < 22] <- 0
+pooled$eligible[pooled$year == 2016 & pooled$age >= 22] <- 1
+
 # calculate margin among validated voters from 2016 CCES
 pooled %>% 
   filter(!choice %in% c("I Won't Vote In This Election"), !is.na(choice), validated == 'Voted') %>% 
