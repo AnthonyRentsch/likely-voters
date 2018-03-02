@@ -1,6 +1,6 @@
 ---
 title: "Analysis Part I - National Models"
-date: "February 27, 2018"
+date: "March 1, 2018"
 output:
   github_document:
     toc: true
@@ -171,7 +171,7 @@ df %>%
   ggplot() +
   geom_col(aes(model, margin)) +
   coord_flip() +
-  geom_hline(yintercept = 4.4, lty = 2, colour = "red") +
+  geom_hline(yintercept = validated_margin16, lty = 2, colour = "red") +
   labs(y = "Clinton's predicted margin of victory")
 ```
 
@@ -335,7 +335,7 @@ df_combined %>% gather(`Vote history`, value, `Voted in 2012`:All) %>%
   coord_flip() +
   labs(x = "Vote intent", y = "Clinton's predicted margin of victory") +
   scale_fill_grey() +
-  geom_hline(yintercept = 4.4, lty = 2, colour = "red")
+  geom_hline(yintercept = validated_margin16, lty = 2, colour = "red")
 ```
 
 My takeaway is that adding vote history does not add much information on top of vote intent. But this is just for 2016 election predictions - may be useful to predict individual-level turnout and may be useful for other elections still.
@@ -482,7 +482,7 @@ df %>%
   geom_col(aes(model, margin)) +
   coord_flip() +
   labs(x = "", y = "Clinton's predicted margin of victory") +
-  geom_hline(yintercept = 4.4, lty = 2, colour = "red")
+  geom_hline(yintercept = validated_margin16, lty = 2, colour = "red")
 ```
 
 
@@ -645,11 +645,14 @@ weighted_margin_by_turnout <- weighted_margin_by_turnout %>% rename(margin = V1,
 
 ggplot() +
   geom_point(data = margin_by_turnout, 
-             aes(x = turnout_rates[i]*100, y = margin, colour = "unweighted"), alpha = 0.5) +
-  geom_point(data = weighted_margin_by_turnout, 
-             aes(x = turnout_rates[i]*100, y = margin, colour = "weighted"), alpha = 0.5) +
-  geom_hline(yintercept = 4.4, lty = 2, col = "red") +
-  #coord_cartesian(xlim = c(25, 100)) +
+             aes(x = turnout_rates[i]*100, y = margin), colour = "grey", alpha = 0.8) +
+  geom_hline(yintercept = 
+               weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100], 
+             lty = 2, col = "black") +
+  geom_text(aes(93, weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100],
+                label = "weighted margin", vjust = -1)) +
+  geom_hline(yintercept = validated_margin16, lty = 2, col = "red") +
+  geom_text(aes(89.5, validated_margin16, label = "validated voter margin", vjust = -1)) +
   labs(title = paste0("Clinton's predicted margin of victory computed from 2016 CCES sample (N = ",
                       nrow(predictions), ")", sep = ""),
        x = "Turnout (%)",
@@ -822,16 +825,18 @@ weighted_margin_by_turnout <- weighted_margin_by_turnout %>% rename(margin = V1,
 
 ggplot() +
   geom_point(data = margin_by_turnout, 
-             aes(x = turnout_rates[i]*100, y = margin, colour = "unweighted"), alpha = 0.5) +
-  geom_point(data = weighted_margin_by_turnout, 
-             aes(x = turnout_rates[i]*100, y = margin, colour = "weighted"), alpha = 0.5) +
-  geom_hline(yintercept = 4.4, lty = 2, col = "red") +
-  #coord_cartesian(xlim = c(25, 100)) +
+             aes(x = turnout_rates[i]*100, y = margin), colour = "grey", alpha = 0.8) +
+  geom_hline(yintercept = 
+               weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100], 
+             lty = 2, col = "black") +
+  geom_text(aes(93, weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100],
+                label = "weighted margin", vjust = -1)) +
+  geom_hline(yintercept = validated_margin16, lty = 2, col = "red") +
+  geom_text(aes(89.5, validated_margin16, label = "validated voter margin", vjust = -1)) +
   labs(title = paste0("Clinton's predicted margin of victory computed from 2016 CCES sample (N = ",
                       nrow(predictions), ")", sep = ""),
        x = "Turnout (%)",
-       y = "Clinton's predicted margin of victory") +
-  theme(legend.title=element_blank())
+       y = "Clinton's predicted margin of victory")
 ```
 
 
@@ -995,16 +1000,18 @@ weighted_margin_by_turnout <- weighted_margin_by_turnout %>% rename(margin = V1,
 
 ggplot() +
   geom_point(data = margin_by_turnout, 
-             aes(x = turnout_rates[i]*100, y = margin, colour = "unweighted"), alpha = 0.5) +
-  geom_point(data = weighted_margin_by_turnout, 
-             aes(x = turnout_rates[i]*100, y = margin, colour = "weighted"), alpha = 0.5) +
-  geom_hline(yintercept = 4.4, lty = 2, col = "red") +
-  #coord_cartesian(xlim = c(25, 100)) +
+             aes(x = turnout_rates[i]*100, y = margin), colour = "grey", alpha = 0.8) +
+  geom_hline(yintercept = 
+               weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100], 
+             lty = 2, col = "black") +
+  geom_text(aes(93, weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100],
+                label = "weighted margin", vjust = -1)) +
+  geom_hline(yintercept = validated_margin16, lty = 2, col = "red") +
+  geom_text(aes(89.5, validated_margin16, label = "validated voter margin", vjust = -1)) +
   labs(title = paste0("Clinton's predicted margin of victory computed from 2016 CCES sample (N = ",
                       nrow(predictions), ")", sep = ""),
        x = "Turnout (%)",
-       y = "Clinton's predicted margin of victory") +
-  theme(legend.title=element_blank())
+       y = "Clinton's predicted margin of victory")
 ```
 
 
@@ -1163,16 +1170,18 @@ weighted_margin_by_turnout <- weighted_margin_by_turnout %>% rename(margin = V1,
 
 ggplot() +
   geom_point(data = margin_by_turnout, 
-             aes(x = turnout_rates[i]*100, y = margin, colour = "unweighted"), alpha = 0.5) +
-  geom_point(data = weighted_margin_by_turnout, 
-             aes(x = turnout_rates[i]*100, y = margin, colour = "weighted"), alpha = 0.5) +
-  geom_hline(yintercept = 4.4, lty = 2, col = "red") +
-  #coord_cartesian(xlim = c(25, 100)) +
+             aes(x = turnout_rates[i]*100, y = margin), colour = "grey", alpha = 0.8) +
+  geom_hline(yintercept = 
+               weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100], 
+             lty = 2, col = "black") +
+  geom_text(aes(95, weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100],
+                label = "weighted margin", vjust = -1)) +
+  geom_hline(yintercept = validated_margin16, lty = 2, col = "red") +
+  geom_text(aes(91, validated_margin16, label = "validated voter margin", vjust = -1)) +
   labs(title = paste0("Clinton's predicted margin of victory computed from 2016 CCES sample (N = ",
                       nrow(predictions), ")", sep = ""),
        x = "Turnout (%)",
-       y = "Clinton's predicted margin of victory") +
-  theme(legend.title=element_blank())
+       y = "Clinton's predicted margin of victory")
 ```
 
 ## Perry-Gallup index + all variables potentially related to turnout
@@ -1330,16 +1339,18 @@ weighted_margin_by_turnout <- weighted_margin_by_turnout %>% rename(margin = V1,
 
 ggplot() +
   geom_point(data = margin_by_turnout, 
-             aes(x = turnout_rates[i]*100, y = margin, colour = "unweighted"), alpha = 0.5) +
-  geom_point(data = weighted_margin_by_turnout, 
-             aes(x = turnout_rates[i]*100, y = margin, colour = "weighted"), alpha = 0.5) +
-  geom_hline(yintercept = 4.4, lty = 2, col = "red") +
-  #coord_cartesian(xlim = c(25, 100)) +
+             aes(x = turnout_rates[i]*100, y = margin), colour = "grey", alpha = 0.8) +
+  geom_hline(yintercept = 
+               weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100], 
+             lty = 2, col = "black") +
+  geom_text(aes(93, weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100],
+                label = "weighted margin", vjust = 2)) +
+  geom_hline(yintercept = validated_margin16, lty = 2, col = "red") +
+  geom_text(aes(89.5, validated_margin16, label = "validated voter margin", vjust = -1)) +
   labs(title = paste0("Clinton's predicted margin of victory computed from 2016 CCES sample (N = ",
                       nrow(predictions), ")", sep = ""),
        x = "Turnout (%)",
-       y = "Clinton's predicted margin of victory") +
-  theme(legend.title=element_blank())
+       y = "Clinton's predicted margin of victory")
 ```
 
 
@@ -1493,15 +1504,17 @@ weighted_margin_by_turnout <- weighted_margin_by_turnout %>% rename(margin = V1,
 
 ggplot() +
   geom_point(data = margin_by_turnout, 
-             aes(x = turnout_rates[i]*100, y = margin, colour = "unweighted"), alpha = 0.5) +
-  geom_point(data = weighted_margin_by_turnout, 
-             aes(x = turnout_rates[i]*100, y = margin, colour = "weighted"), alpha = 0.5) +
-  geom_hline(yintercept = 4.4, lty = 2, col = "red") +
-  #coord_cartesian(xlim = c(25, 100)) +
+             aes(x = turnout_rates[i]*100, y = margin), colour = "grey", alpha = 0.8) +
+  geom_hline(yintercept = 
+               weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100], 
+             lty = 2, col = "black") +
+  geom_text(aes(93, weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100],
+                label = "weighted margin", vjust = 2)) +
+  geom_hline(yintercept = validated_margin16, lty = 2, col = "red") +
+  geom_text(aes(91, validated_margin16, label = "validated voter margin", vjust = -1)) +
   labs(title = paste0("Clinton's predicted margin of victory computed from 2016 CCES sample (N = ",
                       nrow(predictions), ")", sep = ""),
        x = "Turnout (%)",
-       y = "Clinton's predicted margin of victory") +
-  theme(legend.title=element_blank())
+       y = "Clinton's predicted margin of victory")
 ```
 

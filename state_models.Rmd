@@ -18,7 +18,7 @@ knitr::read_chunk('load.R')
 
 ```{r, echo = FALSE, include = FALSE}
 # run load.R 
-<<load>> 
+# <<load>> 
 ```
 
 # Introduction
@@ -233,7 +233,8 @@ ggplot(df) +
 Clinton's chances are overestimated by an average of 2.43 points, across all vote intent model types. Breaking it down by type:
 
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
-df %>% group_by(model) %>% summarise('predicted - validated' = mean(model_margin - validated_margin))
+df %>% group_by(model) %>% summarise(mean_error = mean(model_margin - validated_margin)) %>% 
+  mutate(MSE = mean_error^2)
 ```
 
 # Vote Intent + Vote History
@@ -451,7 +452,8 @@ df %>%
 Looks like this overestimates Clinton's chances a bit. The average difference between a state's predicted margin and margin among validated voters is a little over 2.5 points in favor of Clinton, across all model types. Looking at specific model types:
 
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
-df %>% group_by(model) %>% summarise('predicted - validated' = mean(model_margin - validated_margin))
+df %>% group_by(model) %>% summarise(mean_error = mean(model_margin - validated_margin)) %>% 
+  mutate(MSE = mean_error^2)
 ```
 
 # Perry-Gallup Index
@@ -623,11 +625,17 @@ df %>%
 
 
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
-df %>% group_by(model) %>% summarise('predicted - validated' = mean(model_margin - validated_margin))
+df %>% group_by(model) %>% summarise(mean_error = mean(model_margin - validated_margin)) %>% mutate(MSE = mean_error^2)
 ```
 
 
 # Logistic Regression
 
 ## Individual-level turnout
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+
+
+```
+
 

@@ -425,8 +425,6 @@ pooled$perry_gallup[pooled$age < 22 && pooled$vote_history == 0] <- pooled$perry
 
 
 # create eligible variable, to be used in logistic regression Perry-Gallup section
-# create eligible variable
-# train
 pooled <- pooled %>% mutate(eligible = 0)
 pooled$eligible[pooled$year %in% c(2008, 2012) & pooled$age < 22] <- 0
 pooled$eligible[pooled$year %in% c(2008, 2012) & pooled$age >= 22] <- 1
@@ -435,19 +433,29 @@ pooled$eligible[pooled$year %in% c(2010, 2014) & pooled$age >= 20] <- 1
 pooled$eligible[pooled$year == 2016 & pooled$age < 22] <- 0
 pooled$eligible[pooled$year == 2016 & pooled$age >= 22] <- 1
 
-# calculate margin among validated voters from 2016 CCES
-pooled %>% 
-  filter(!choice %in% c("I Won't Vote In This Election"), !is.na(choice), validated == 'Voted') %>% 
-  #filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)"), validated == 'Voted') %>% 
-  group_by(choice) %>% 
-  summarise(n = sum(weight)) %>% 
-  mutate(vote_share = n/sum(n))
 
-cces16 %>% 
-  filter(CC16_364c < 8 & CL_E2016GVM != "" & CC16_364c != 6) %>% 
-  group_by(CC16_364c) %>% 
-  summarise(n = sum(commonweight)) %>% 
+# calculate margin among validated voters from 2016 CCES - baseline margin
+# cces16$CC16_364c[is.na(cces16$CC16_364c)] <- cces16$CC16_364b[is.na(cces16$CC16_364c)]
+# validated_margin16 <- cces16 %>% 
+#   filter(CC16_364c < 8 & CL_E2016GVM != "" & CC16_364c != 6) %>% 
+#   group_by(CC16_364c) %>% 
+#   summarise(n = sum(commonweight)) %>% 
+#   mutate(vote_share = n/sum(n))
+# validated_margin16 <- validated_margin16 %>% 
+#     mutate(margin = 100*(vote_share - lag(vote_share, default=first(vote_share)))) %>% 
+#     filter(CC16_364c == 2) %>% 
+#     select(margin)
+
+validated_margin16 <- pooled %>%
+  filter(year == 2016, !choice %in% c("I Won't Vote In This Election"), !is.na(choice), validated == 'Voted') %>%
+  group_by(choice) %>%
+  summarise(n = sum(weight)) %>%
   mutate(vote_share = n/sum(n))
+validated_margin16 <- validated_margin16 %>%
+    mutate(margin = 100*(vote_share - lag(vote_share, default=first(vote_share)))) %>%
+    filter(choice == "Hillary Clinton (Democrat)") %>%
+    select(margin)
+validated_margin16 <- validated_margin16$margin
 
 ############
 

@@ -1,6 +1,6 @@
 Analysis Part I - National Models
 ================
-February 26, 2018
+March 1, 2018
 
 -   [Introduction](#introduction)
 -   [Vote Intent](#vote-intent)
@@ -143,12 +143,12 @@ The minimum score, corresponding to those least likely to vote, is 0 while the m
 Individual-level turnout
 ------------------------
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-12-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-11-1.png)
 
 Election predictions
 --------------------
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-13-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-12-1.png)
 
 Logistic Regression
 ===================
@@ -166,15 +166,15 @@ Perry-Gallup index
 
 ### Individual-level turnout
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-15-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-14-1.png)
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-16-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-15-1.png)
 
 ### Election Predictions
 
 Note that I include two calculations here: in one, I consider the margin of victory for Clinton only weighted by the weighting variable included in the pooled CCES while in the other I consider the margin weighted by that weight times the vote propensity score from the model.
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-17-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-16-1.png)
 
 Perry-Gallup index + all variables potentially related to turnout
 -----------------------------------------------------------------
@@ -198,13 +198,13 @@ The racial composition of district and political interest/activism items are not
 
 ### Individual-level turnout
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-19-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-18-1.png)
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-20-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-19-1.png)
 
 ### Election Predictions
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-21-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-20-1.png)
 
 Perry-Gallup index + all variables potentially related to turnout + structural election variables
 -------------------------------------------------------------------------------------------------
@@ -222,13 +222,13 @@ You can read more about his model [here](https://www.washingtonpost.com/blogs/ez
 
 ### Individual-level turnout
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-23-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-22-1.png)
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-24-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-23-1.png)
 
 ### Election Predictions
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-25-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-24-1.png)
 
 Random Forests
 ==============
@@ -244,13 +244,13 @@ Perry-Gallup index
 
 ### Individual-level turnout
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-27-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-26-1.png)
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-28-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-27-1.png)
 
 ### Election Predictions
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-29-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-28-1.png)
 
 Perry-Gallup index + all variables potentially related to turnout
 -----------------------------------------------------------------
@@ -274,13 +274,13 @@ The racial composition of district and political interest/activism items are not
 
 ### Individual-level turnout
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-31-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-30-1.png)
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-32-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-31-1.png)
 
 ### Election Predictions
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-33-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-32-1.png)
 
 Perry-Gallup index + all variables potentially related to turnout + structural election variables
 -------------------------------------------------------------------------------------------------
@@ -298,10 +298,10 @@ You can read more about his model [here](https://www.washingtonpost.com/blogs/ez
 
 ### Individual-level turnout
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-35-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-34-1.png)
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-36-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-35-1.png)
 
 ### Election Predictions
 
-![](national_models_files/figure-markdown_github/unnamed-chunk-37-1.png)
+![](national_models_files/figure-markdown_github/unnamed-chunk-36-1.png)
