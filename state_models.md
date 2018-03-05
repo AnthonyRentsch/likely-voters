@@ -1,6 +1,6 @@
 Analysis Part II - State Models
 ================
-February 28, 2018
+March 5, 2018
 
 -   [Introduction](#introduction)
 -   [Vote Intent](#vote-intent)
@@ -42,7 +42,7 @@ Due to smaller sample sizes in some states in the 2016 CCES, I may choose to dro
 | Alaska               |    538|
 | Arizona              |   6671|
 | Arkansas             |   2389|
-| California           |  24927|
+| California           |  24928|
 | Colorado             |   4532|
 | Connecticut          |   3197|
 | Delaware             |   1025|
@@ -58,19 +58,19 @@ Due to smaller sample sizes in some states in the 2016 CCES, I may choose to dro
 | Kentucky             |   3672|
 | Louisiana            |   3037|
 | Maine                |   1619|
-| Maryland             |   4755|
-| Massachusetts        |   5313|
+| Maryland             |   4756|
+| Massachusetts        |   5314|
 | Michigan             |   8561|
 | Minnesota            |   4585|
 | Mississippi          |   1858|
-| Missouri             |   5673|
+| Missouri             |   5675|
 | Montana              |    965|
 | Nebraska             |   1652|
 | Nevada               |   2993|
 | New Hampshire        |   1617|
 | New Jersey           |   6985|
 | New Mexico           |   1865|
-| New York             |  14789|
+| New York             |  14790|
 | North Carolina       |   7707|
 | North Dakota         |    582|
 | Ohio                 |  10764|
@@ -80,7 +80,7 @@ Due to smaller sample sizes in some states in the 2016 CCES, I may choose to dro
 | Rhode Island         |    968|
 | South Carolina       |   3632|
 | South Dakota         |    745|
-| Tennessee            |   4892|
+| Tennessee            |   4893|
 | Texas                |  17574|
 | Utah                 |   2215|
 | Vermont              |    627|
@@ -107,12 +107,12 @@ Election Predictions
 
 Clinton's chances are overestimated by an average of 2.43 points, across all vote intent model types. Breaking it down by type:
 
-| model                                                        |  predicted - validated|
-|:-------------------------------------------------------------|----------------------:|
-| Already voted + will definitely vote                         |               2.411961|
-| Already voted + will definitely or probably vote             |               2.628627|
-| Already voted + will definitely or probably vote + undecided |               2.392745|
-| All respondents                                              |               2.288039|
+| model                                                        |  mean\_error|       MSE|
+|:-------------------------------------------------------------|------------:|---------:|
+| Already voted + will definitely vote                         |     2.411961|  39.20252|
+| Already voted + will definitely or probably vote             |     2.628627|  46.47919|
+| Already voted + will definitely or probably vote + undecided |     2.392745|  39.87361|
+| All respondents                                              |     2.288039|  49.19410|
 
 Vote Intent + Vote History
 ==========================
@@ -133,12 +133,12 @@ Election Predictions
 
 Looks like this overestimates Clinton's chances a bit. The average difference between a state's predicted margin and margin among validated voters is a little over 2.5 points in favor of Clinton, across all model types. Looking at specific model types:
 
-| model                                                        |  predicted - validated|
-|:-------------------------------------------------------------|----------------------:|
-| Already voted + will definitely vote                         |               2.491078|
-| Already voted + will definitely or probably vote             |               2.634608|
-| Already voted + will definitely or probably vote + undecided |               2.563137|
-| All respondents                                              |               2.560196|
+| model                                                        |  mean\_error|       MSE|
+|:-------------------------------------------------------------|------------:|---------:|
+| Already voted + will definitely vote                         |     2.491078|  43.18726|
+| Already voted + will definitely or probably vote             |     2.634608|  46.69294|
+| Already voted + will definitely or probably vote + undecided |     2.563137|  42.54534|
+| All respondents                                              |     2.560196|  47.25696|
 
 Perry-Gallup Index
 ==================
@@ -157,13 +157,13 @@ Election Predictions
 
 ![](state_models_files/figure-markdown_github/unnamed-chunk-13-1.png)
 
-| model                  |  predicted - validated|
-|:-----------------------|----------------------:|
-| 6s and 5s              |              -2.349608|
-| 6s, 5s, and 4s         |               1.449804|
-| 6s, 5s, 4s, and 3s     |               2.405490|
-| 6s, 5s, 4s, 3s, and 2s |               2.397255|
-| All                    |               2.282157|
+| model                  |  mean\_error|       MSE|
+|:-----------------------|------------:|---------:|
+| 6s and 5s              |    -2.349608|  84.97869|
+| 6s, 5s, and 4s         |     1.449804|  44.02442|
+| 6s, 5s, 4s, and 3s     |     2.405490|  48.38613|
+| 6s, 5s, 4s, 3s, and 2s |     2.397255|  50.76708|
+| All                    |     2.282157|  48.79396|
 
 Logistic Regression
 ===================
