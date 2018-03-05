@@ -105,10 +105,15 @@ cces08 <- left_join(cces08, race, by = "race")
 pooled <- readRDS("/Users/anthonyrentsch/Desktop/UMass/thesis/data/cumulative_2006_2016 (1).Rds")
 
 ## 2008
-cces08_tojoin <- cces08 %>% select(V100, V246, V217, V214, V244, CC301_2, CC301_3, CC335bush, V203, CC334, CC326, CC324_1) %>% 
+cces08_tojoin <- cces08 %>% select(V100, V246, V217, V214, V244, CC301_2, CC301_3, CC335bush, V203, CC334, CC326, CC324_1, CC324_2) %>% 
   rename(case_id = V100, income = V246, religiosity = V217, marital_status = V214, 
          interest = V244, registration = V203, residential_mobility = CC334, 
-         intent = CC326, vote_history = CC324_1)
+         intent = CC326, vote_history_primary = CC324_1, vote_history_caucus = CC324_2)
+# incorporate primary and caucus vote history from 2008
+cces08_tojoin$vote_history <- 0
+cces08_tojoin$vote_history[cces08_tojoin$vote_history_primary == 1 |
+                             cces08_tojoin$vote_history_caucus == 1] <- 1
+cces08_tojoin <- cces08_tojoin %>% select(-vote_history_primary, -vote_history_caucus)
 pooled <- left_join(pooled, cces08_tojoin, by = 'case_id')
   
 ## 2012

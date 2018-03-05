@@ -84,13 +84,13 @@ First, I'll consider everyone who self-reported that they voted in 2012. Then I'
 
 | Vote history                                | Vote intent                                                  |  True positive rate|  True negative rate|
 |:--------------------------------------------|:-------------------------------------------------------------|-------------------:|-------------------:|
-| Voted in 2012                               | Already voted + will definitely vote                         |               69.95|               73.60|
-|                                             | Already voted + will definitely or probably vote             |               68.17|               74.38|
-|                                             | Already voted + will definitely or probably vote + undecided |               67.28|               74.09|
-|                                             | All respondents                                              |               66.67|               73.48|
-| Voted in 2012, don't recall, or didn't vote | Already voted + will definitely vote                         |               68.07|               86.50|
-|                                             | Already voted + will definitely or probably vote             |               64.50|               92.86|
-|                                             | Already voted + will definitely or probably vote + undecided |               61.64|               95.87|
+| Voted in 2012                               | Already voted + will definitely vote                         |               69.99|               74.19|
+|                                             | Already voted + will definitely or probably vote             |               68.21|               75.06|
+|                                             | Already voted + will definitely or probably vote + undecided |               67.33|               74.82|
+|                                             | All respondents                                              |               66.71|               74.22|
+| Voted in 2012, don't recall, or didn't vote | Already voted + will definitely vote                         |               68.07|               86.49|
+|                                             | Already voted + will definitely or probably vote             |               64.50|               92.84|
+|                                             | Already voted + will definitely or probably vote + undecided |               61.64|               95.84|
 |                                             | All respondents                                              |               57.80|                  NA|
 
 Election predictions
