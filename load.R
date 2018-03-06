@@ -126,11 +126,14 @@ pooled <- left_join(pooled, cces12_tojoin, by = 'case_id')
 
 ## 2016
 cces16_tojoin <- cces16 %>% select(V101, faminc, pew_churatd, marstat, newsint,
-                                   CC16_361, votereg, CC16_320a, CC16_364, CC16_316) %>% 
+                                   CC16_361, votereg, CC16_320a, CC16_364, CC16_316, commonweight) %>% 
   rename(case_id = V101, income = faminc, religiosity = pew_churatd, marital_status = marstat,
          interest = newsint, residential_mobility = CC16_361, registration = votereg, 
-         intent = CC16_364, vote_history = CC16_316)
+         intent = CC16_364, vote_history = CC16_316, commonweight = commonweight)
 pooled <- left_join(pooled, cces16_tojoin, by = 'case_id')
+# replace cumulative file weight with 2016 weight
+pooled$weight[pooled$year == 2016] <- pooled$commonweight[pooled$year == 2016]
+pooled <- pooled %>% select(-commonweight)
 
 ## 2010
 cces10_tojoin <- cces10 %>% select(V100, V246, V217, V214, V244, CC351, V203, CC354, CC316, V504, V501) %>% 

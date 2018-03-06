@@ -1,6 +1,6 @@
 Analysis Part I - National Models
 ================
-March 1, 2018
+March 6, 2018
 
 -   [Introduction](#introduction)
 -   [Vote Intent](#vote-intent)
@@ -123,12 +123,9 @@ The three variables I will consider are vote intent, vote history, and political
     -   I already voted (early or absentee) (**+2**)
     -   No
     -   Undecided
--   In 2012, who did you vote for in the election for President?
-    -   Barack Obama (**+1**)
-    -   Mitt Romney (**+1**)
-    -   Someone else (**+1**)
-    -   Did not vote
-    -   Don't recall
+-   Did you vote in the 2012 general election?
+    -   Yes (**+1**)
+    -   No
 -   Some people seem to follow what is going on in government or public affairs most of the time, whether there's an election or not. Others aren't that interested. Would you say you follow what is going on in government and public affairs...
     -   Most of the time (**+2**)
     -   Some of the time (**+1**)
