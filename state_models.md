@@ -1,6 +1,6 @@
 Analysis Part II - State Models
 ================
-March 5, 2018
+March 6, 2018
 
 -   [Introduction](#introduction)
 -   [Vote Intent](#vote-intent)
