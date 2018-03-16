@@ -1,6 +1,6 @@
 Analysis Part I - National Models
 ================
-March 6, 2018
+March 14, 2018
 
 -   [Introduction](#introduction)
 -   [Vote Intent](#vote-intent)
@@ -50,7 +50,6 @@ Individual-level turnout
 
 First we compare individual-level turnout prediction accuracy when we define likely voters as:
 
--   those who say they already voted
 -   those who say they will definitely vote or have voted already
 -   those who say they will definitely vote, have voted already, or will probably vote
 -   those who say they will definitely vote, have voted already, will probably vote, or who are undecided
@@ -84,14 +83,14 @@ First, I'll consider everyone who self-reported that they voted in 2012. Then I'
 
 | Vote history                                | Vote intent                                                  |  True positive rate|  True negative rate|
 |:--------------------------------------------|:-------------------------------------------------------------|-------------------:|-------------------:|
-| Voted in 2012                               | Already voted + will definitely vote                         |               69.99|               74.19|
-|                                             | Already voted + will definitely or probably vote             |               68.21|               75.06|
-|                                             | Already voted + will definitely or probably vote + undecided |               67.33|               74.82|
-|                                             | All respondents                                              |               66.71|               74.22|
-| Voted in 2012, don't recall, or didn't vote | Already voted + will definitely vote                         |               68.07|               86.49|
-|                                             | Already voted + will definitely or probably vote             |               64.50|               92.84|
-|                                             | Already voted + will definitely or probably vote + undecided |               61.64|               95.84|
-|                                             | All respondents                                              |               57.80|                  NA|
+| Voted in 2012                               | Already voted + will definitely vote                         |               69.97|               74.23|
+|                                             | Already voted + will definitely or probably vote             |               68.19|               75.11|
+|                                             | Already voted + will definitely or probably vote + undecided |               67.30|               74.86|
+|                                             | All respondents                                              |               66.69|               74.27|
+| Voted in 2012, don't recall, or didn't vote | Already voted + will definitely vote                         |               68.05|               86.49|
+|                                             | Already voted + will definitely or probably vote             |               64.47|               92.86|
+|                                             | Already voted + will definitely or probably vote + undecided |               61.62|               95.84|
+|                                             | All respondents                                              |               57.77|                  NA|
 
 Election predictions
 --------------------
@@ -206,16 +205,17 @@ The racial composition of district and political interest/activism items are not
 Perry-Gallup index + all variables potentially related to turnout + structural election variables
 -------------------------------------------------------------------------------------------------
 
-In addtion to the variables I included in the last mode, I now include structural election variables. I consider Abramowitz's Time-for-Change model. The model predicts the vote share for the candidate of the incumbent's party based on
+In addtion to the variables I included in the last mode, I now include structural election variables. I use a reformulation of Abramowitz's Time-for-Change model. The model predicts the vote share for the candidate of the incumbent's party based on
 
--   the net approval rating of the sitting President (using the final Gallup poll in June of the election year),
+-   the net approval rating of the sitting President (using the final Gallup poll in June of the election year)
 -   the annualized growth rate of real GDP in the second quarter of the election year (taken from the U.S. Department of Commerce's Bureau of Economic Analysis)
 -   whether a first-term incumbent is running
--   an indicator variables to measure the level of polarization (this was added in 2012): it is coded
-    -   1 if first-term incumbent running or open seat where incumbent president has net approval rating over 0
-    -   -1 if no first-term incumbent or incumbent president has net approval rating less than 0
+    -   Since I also use midterm election years, I consider whether the incumbent and the President are from the same party (this is coded 1 in presidential election years and 1 or 0 in midterm years)
+-   an indicator variable to measure the level of polarization (this was added in 2012): it is coded
+    -   1 if first-term incumbent running or open seat where incumbent president has net approval rating over 0 (presidential election years) or 1 if the House incumbent is from the same party as the President or if they are from different parties and the President has a net approval rating over 0 (midterm election years)
+    -   0 if no first-term incumbent or incumbent president has net approval rating less than 0 (presidential election years) or 0 if the House incumbent and President are from different parties and the presidential net approval rating is less than 0 (midterm election years)
 
-You can read more about his model [here](https://www.washingtonpost.com/blogs/ezra-klein/files/2012/08/abramowitz.pdf). Since I also use midterm election years, I calculate the net approval rating of each respondent's House of Representatives using an item on the CCES and consider the incumbency of this official for respondents in the 2010 and 2014 data sets.
+You can read more about his model [here](https://www.washingtonpost.com/blogs/ezra-klein/files/2012/08/abramowitz.pdf).
 
 ### Individual-level turnout
 
@@ -282,16 +282,17 @@ The racial composition of district and political interest/activism items are not
 Perry-Gallup index + all variables potentially related to turnout + structural election variables
 -------------------------------------------------------------------------------------------------
 
-In addtion to the variables I included in the last mode, I now include structural election variables. I consider Abramowitz's Time-for-Change model. The model predicts the vote share for the candidate of the incumbent's party based on
+In addtion to the variables I included in the last mode, I now include structural election variables. I use a reformulation of Abramowitz's Time-for-Change model. The model predicts the vote share for the candidate of the incumbent's party based on
 
--   the net approval rating of the sitting President (using the final Gallup poll in June of the election year),
+-   the net approval rating of the sitting President (using the final Gallup poll in June of the election year)
 -   the annualized growth rate of real GDP in the second quarter of the election year (taken from the U.S. Department of Commerce's Bureau of Economic Analysis)
 -   whether a first-term incumbent is running
--   an indicator variables to measure the level of polarization (this was added in 2012): it is coded
-    -   1 if first-term incumbent running or open seat where incumbent president has net approval rating over 0
-    -   -1 if no first-term incumbent or incumbent president has net approval rating less than 0
+    -   Since I also use midterm election years, I consider whether the incumbent and the President are from the same party (this is coded 1 in presidential election years and 1 or 0 in midterm years)
+-   an indicator variable to measure the level of polarization (this was added in 2012): it is coded
+    -   1 if first-term incumbent running or open seat where incumbent president has net approval rating over 0 (presidential election years) or 1 if the House incumbent is from the same party as the President or if they are from different parties and the President has a net approval rating over 0 (midterm election years)
+    -   0 if no first-term incumbent or incumbent president has net approval rating less than 0 (presidential election years) or 0 if the House incumbent and President are from different parties and the presidential net approval rating is less than 0 (midterm election years)
 
-You can read more about his model [here](https://www.washingtonpost.com/blogs/ezra-klein/files/2012/08/abramowitz.pdf). Since I also use midterm election years, I calculate the net approval rating of each respondent's House of Representatives using an item on the CCES and consider the incumbency of this official for respondents in the 2010 and 2014 data sets.
+You can read more about his model [here](https://www.washingtonpost.com/blogs/ezra-klein/files/2012/08/abramowitz.pdf).
 
 ### Individual-level turnout
 

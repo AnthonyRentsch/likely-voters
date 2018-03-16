@@ -136,19 +136,18 @@ pooled$weight[pooled$year == 2016] <- pooled$commonweight[pooled$year == 2016]
 pooled <- pooled %>% select(-commonweight)
 
 ## 2010
-cces10_tojoin <- cces10 %>% select(V100, V246, V217, V214, V244, CC351, V203, CC354, CC316, V504, V501) %>% 
+cces10_tojoin <- cces10 %>% select(V100, V246, V217, V214, V244, CC351, V203, CC354, CC316, V502) %>% 
   rename(case_id = V100, income = V246, religiosity = V217, marital_status = V214, 
          interest = V244, residential_mobility = CC351, registration = V203, 
-         intent = CC354, vote_history = CC316, incumbent = V504, incumbent_name = V501) %>% 
+         intent = CC354, vote_history = CC316, incumbent_party10 = V502) %>% 
   mutate(case_id = as.integer(case_id))
 pooled <- left_join(pooled, cces10_tojoin, by = 'case_id')
 
 ## 2014
-cces14_tojoin <- cces14 %>% select(V101, faminc, pew_churatd, marstat, newsint, CC351, votereg, CC354, CC14_316, HouseCand1IncumbentNum, HouseCand2IncumbentNum, CurrentHouseName) %>% 
+cces14_tojoin <- cces14 %>% select(V101, faminc, pew_churatd, marstat, newsint, CC351, votereg, CC354, CC14_316, CurrentHouseParty) %>% 
   rename(case_id = V101, income = faminc, religiosity = pew_churatd, marital_status = marstat,
          interest = newsint, residential_mobility = CC351, registration = votereg, 
-         intent = CC354, vote_history = CC14_316, incumbent1_status = HouseCand1IncumbentNum,
-         incumbent2_status = HouseCand2IncumbentNum, incumbent_name = CurrentHouseName)
+         intent = CC354, vote_history = CC14_316, incumbent_party14 = CurrentHouseParty)
 pooled <- left_join(pooled, cces14_tojoin, by = 'case_id')
 
 # add structural variables from Abramowitz Time for Change model:
@@ -166,60 +165,60 @@ pooled$gdp_growth[pooled$year == 2014] <- 4
 pooled$pres_approval[pooled$year == 2008] <- 28-68
 pooled$pres_approval[pooled$year == 2012] <- 47-46
 pooled$pres_approval[pooled$year == 2016] <- 51-45
-# 2010/2014 - compute net approval for each House incumbent, 
-# then assign this to each R with this incumbent
-# 2010
-incumbent_approval10 <- cces10 %>% group_by(V501, CC315a) %>%
-  summarise(n = sum(V101)) %>% 
-  spread(CC315a, n) %>% 
-  mutate(approval = round(100*((`1`+`2`)-(`3`+`4`))/(`1`+`2`+`3`+`4`), 0)) %>% 
-  select(V501, approval) %>% rename(incumbent_name.x = V501) %>%
-  filter(!is.na(incumbent_name.x), incumbent_name.x != "")
-pooled <- left_join(pooled, incumbent_approval10, by = 'incumbent_name.x')
-# 2014
-incumbent_approval14 <- cces14 %>% group_by(CurrentHouseName, CC14_315a) %>%
-  summarise(n = sum(weight)) %>% 
-  spread(CC14_315a, n) %>% 
-  mutate(approval = round(100*((`1`+`2`)-(`3`+`4`))/(`1`+`2`+`3`+`4`), 0)) %>% 
-  select(CurrentHouseName, approval) %>% rename(incumbent_name.y = CurrentHouseName) %>%
-  filter(!is.na(incumbent_name.y), incumbent_name.y != "")
-pooled <- left_join(pooled, incumbent_approval14, by = 'incumbent_name.y')
+pooled$pres_approval[pooled$year == 2010] <- 46-45
+pooled$pres_approval[pooled$year == 2014] <- 43-52
+pooled <- pooled %>% rename(approval = pres_approval)
 
-# finish clean up work
-pooled <- pooled[-which(pooled$year == 2010 & is.na(pooled$approval.x)),]
-pooled <- pooled[-which(pooled$year == 2014 & is.na(pooled$approval.y)),]
-pooled$pres_approval[pooled$year == 2010] <- pooled$approval.x[pooled$year == 2010] 
-pooled$pres_approval[pooled$year == 2014] <- pooled$approval.y[pooled$year == 2014] 
-pooled$incumbent_name[pooled$year == 2010] <- pooled$incumbent_name.x[pooled$year == 2010] 
-pooled$incumbent_name[pooled$year == 2014] <- pooled$incumbent_name.y[pooled$year == 2014] 
-pooled <- pooled %>% select(-approval.x, -approval.y, -incumbent_name.x, -incumbent_name.y) %>% 
-  rename(approval = pres_approval)
+# # 2010/2014 - compute net approval for each House incumbent, 
+# # then assign this to each R with this incumbent
+# # 2010
+# incumbent_approval10 <- cces10 %>% group_by(V501, CC315a) %>%
+#   summarise(n = sum(V101)) %>% 
+#   spread(CC315a, n) %>% 
+#   mutate(approval = round(100*((`1`+`2`)-(`3`+`4`))/(`1`+`2`+`3`+`4`), 0)) %>% 
+#   select(V501, approval) %>% rename(incumbent_name.x = V501) %>%
+#   filter(!is.na(incumbent_name.x), incumbent_name.x != "")
+# pooled <- left_join(pooled, incumbent_approval10, by = 'incumbent_name.x')
+# # 2014
+# incumbent_approval14 <- cces14 %>% group_by(CurrentHouseName, CC14_315a) %>%
+#   summarise(n = sum(weight)) %>% 
+#   spread(CC14_315a, n) %>% 
+#   mutate(approval = round(100*((`1`+`2`)-(`3`+`4`))/(`1`+`2`+`3`+`4`), 0)) %>% 
+#   select(CurrentHouseName, approval) %>% rename(incumbent_name.y = CurrentHouseName) %>%
+#   filter(!is.na(incumbent_name.y), incumbent_name.y != "")
+# pooled <- left_join(pooled, incumbent_approval14, by = 'incumbent_name.y')
 
-# indicator variable for whether or not an incumbent was running
-pooled$incumbent[pooled$year == 2008] <- 0
+# # finish clean up work
+# pooled <- pooled[-which(pooled$year == 2010 & is.na(pooled$approval.x)),]
+# pooled <- pooled[-which(pooled$year == 2014 & is.na(pooled$approval.y)),]
+# pooled$pres_approval[pooled$year == 2010] <- pooled$approval.x[pooled$year == 2010] 
+# pooled$pres_approval[pooled$year == 2014] <- pooled$approval.y[pooled$year == 2014] 
+# pooled$incumbent_name[pooled$year == 2010] <- pooled$incumbent_name.x[pooled$year == 2010] 
+# pooled$incumbent_name[pooled$year == 2014] <- pooled$incumbent_name.y[pooled$year == 2014] 
+# pooled <- pooled %>% select(-approval.x, -approval.y, -incumbent_name.x, -incumbent_name.y) %>% 
+#   rename(approval = pres_approval)
+
+# indicator variable for whether or not the incumbent was from the President's party
+pooled$incumbent[pooled$year == 2008] <- 1
 pooled$incumbent[pooled$year == 2012] <- 1
-pooled$incumbent[pooled$year == 2016] <- 0
-# 2010 - initially coded so that 1 = incumbent retiring, 0 = incumbent running
-pooled$incumbent[pooled$year == 2010 & as.numeric(pooled$incumbent) == 1]  <- 2 #temporary
-pooled$incumbent[pooled$year == 2010 & as.numeric(pooled$incumbent) == 0]  <- 1
-pooled$incumbent[pooled$year == 2010 & as.numeric(pooled$incumbent) == 2]  <- 0
-# 2014
+pooled$incumbent[pooled$year == 2016] <- 1
+pooled$incumbent[pooled$year == 2010 & pooled$incumbent_party10 == "Democratic"]  <- 1
+pooled$incumbent[pooled$year == 2010 & pooled$incumbent_party10 == "Republican"]  <- 0
 pooled$incumbent[pooled$year == 2014] <- 0
-pooled$incumbent[pooled$year == 2014 & 
-                   (pooled$incumbent1_status == 1 | pooled$incumbent2_status == 1)] <- 1
+pooled$incumbent[pooled$year == 2014 & pooled$incumbent_party14 == "Democratic"] <- 1
 
 # polarization variable (Abramowitz 2012)
-# 1 if first-term incumbent running or open seat where incumbent president has net approval over 0
-# -1 if no first-term incumbent or incumbent president has net approval less than 0
-pooled$polarization[pooled$year == 2008] <- -1
+# 1 if incumbent running or open seat where sitting president has net approval over 0
+# -1 if no incumbent running or sitting president has net approval less than 0
+pooled$polarization[pooled$year == 2008] <- 0
 pooled$polarization[pooled$year == 2012] <- 1
-pooled$polarization[pooled$year == 2016] <- -1
+pooled$polarization[pooled$year == 2016] <- 0
 # 2010
-pooled$polarization[pooled$year == 2010] <- -1
+pooled$polarization[pooled$year == 2010] <- 0
 pooled$polarization[(pooled$year == 2010 & pooled$incumbent == 1) |
                       (pooled$year == 2010 & pooled$incumbent == 0 & pooled$approval > 0)] <- 1
 # 2014
-pooled$polarization[pooled$year == 2014] <- -1
+pooled$polarization[pooled$year == 2014] <- 0
 pooled$polarization[(pooled$year == 2014 & pooled$incumbent == 1) |
                       (pooled$year == 2014 & pooled$incumbent == 0 & pooled$approval > 0)] <- 1
 

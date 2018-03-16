@@ -552,7 +552,6 @@ ggplot(data = data, aes(value, group = model)) +
   geom_histogram(data = data[2:length(data)], aes(value, group = model2), fill = "grey") +
   geom_histogram(fill = "black") +
   facet_wrap(~model, labeller = label_wrap_gen()) +
-  #facet_wrap(c("model","type"), labeller = label_wrap_gen(multi_line=FALSE)) +
   labs(x = "", y = "", title = "True negative rates for state-by-state Perry-Gallup index models") +
   scale_fill_grey() +
   theme(legend.title=element_blank(),
@@ -632,11 +631,96 @@ df %>% group_by(model) %>% summarise(mean_error = mean(model_margin - validated_
 
 # Logistic Regression
 
+## Perry-Gallup index
+
 ## Individual-level turnout
 
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# set up
+predictions_all <- data.frame()
+all_states <- unique(pooled$state)
 
+# create models and apply them to test data for all states
+for(i in all_states){
+# create training set 
+train <- pooled %>% filter(state == i, year %in% c(2008,2010,2012,2014))
+test <- pooled %>% filter(state == i, year == 2016)
+
+# run unweighted model
+formula <- as.formula(validated ~ vote_history*intent + interest + registration + eligible)
+model <- glm(formula, family = binomial(link = "logit"), data = train)
+
+# apply the models to test data
+# unweighted
+predictions <- cbind(test, predict(model, newdata = test, type = "response"))
+predictions <- as.data.frame(predictions)
+predictions <- predictions %>% 
+  rename(response = 'predict(model, newdata = test, type = \"response\")')
+predictions <- predictions %>% mutate(state = i)
+
+# all this data set to all
+predictions_all <- rbind(predictions_all, predictions)
+}
+```
+
+I'll first visualize the distribution of vote propensity scores for 9 random states using this model.
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+predictions_all %>% 
+  filter(state %in% sample(all_states, 9)) %>% 
+ggplot() +
+  geom_histogram(aes(x = response), position = "identity", bins = 20) +
+  facet_wrap(~state) +
+  coord_cartesian(xlim = c(0, 1)) +
+  labs(title = "Predicted vote propensity scores for 2016 CCES sample, by state",
+       x = "Vote propensity score") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# consider turnout rates from 0.01 to 0.99 by 1
+turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
+
+# LOOP THROUGH ALL STATES AND GRAB TOP X% OF LIKELY VOTERS AND COMPUTE TURNOUT RATES FOR ALL 
+# THESE RESPONDENTS 
+# IS THIS THE BEST WAY TO DO IT? IT'S SORT OF POOLING ALL STATES TOGETHER...
+
+# calculate true positive and negative rates for each level of turnout
+validation_by_logreg <- function(turnout){
+  willvote <- predictions %>% 
+    top_n(round(nrow(predictions)*turnout,0), wt = response)
+  wontvote <- predictions %>% 
+    anti_join(willvote, by = "case_id")
+
+  pred_voters <- willvote %>% 
+    count(validated = (validated == 'Voted')) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  pred_nonvoters <- wontvote %>% 
+    count(validated = (validated == 'Voted')) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+    rename(voters = percent_v, nonvoters = percent_nv)
+}
+
+true_pos_neg_rates_by_turnout <- data.frame()
+i <- 1
+while(i <= length(turnout_rates)){
+   temp <- validation_by_logreg(turnout_rates[i])
+   true_pos_neg_rates_by_turnout[i,1] <- temp$voters[temp$validated=="Yes"]
+   true_pos_neg_rates_by_turnout[i,2] <- temp$nonvoters[temp$validated=="No"]
+   true_pos_neg_rates_by_turnout[i,3] <- i
+   i = i +1
+}
 
 ```
+
 
 
