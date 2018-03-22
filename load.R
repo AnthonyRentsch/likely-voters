@@ -440,19 +440,7 @@ pooled$eligible[pooled$year %in% c(2010, 2014) & pooled$age >= 20] <- 1
 pooled$eligible[pooled$year == 2016 & pooled$age < 22] <- 0
 pooled$eligible[pooled$year == 2016 & pooled$age >= 22] <- 1
 
-
-# calculate margin among validated voters from 2016 CCES - baseline margin
-# cces16$CC16_364c[is.na(cces16$CC16_364c)] <- cces16$CC16_364b[is.na(cces16$CC16_364c)]
-# validated_margin16 <- cces16 %>% 
-#   filter(CC16_364c < 8 & CL_E2016GVM != "" & CC16_364c != 6) %>% 
-#   group_by(CC16_364c) %>% 
-#   summarise(n = sum(commonweight)) %>% 
-#   mutate(vote_share = n/sum(n))
-# validated_margin16 <- validated_margin16 %>% 
-#     mutate(margin = 100*(vote_share - lag(vote_share, default=first(vote_share)))) %>% 
-#     filter(CC16_364c == 2) %>% 
-#     select(margin)
-
+# calculated margin among 2016 validated voters, nationally
 validated_margin16 <- pooled %>%
   filter(year == 2016, !choice %in% c("I Won't Vote In This Election"), !is.na(choice), validated == 'Voted') %>%
   group_by(choice) %>%
@@ -463,6 +451,17 @@ validated_margin16 <- validated_margin16 %>%
     filter(choice == "Hillary Clinton (Democrat)") %>%
     select(margin)
 validated_margin16 <- validated_margin16$margin
+
+# calculated margin among 2016 validated voters, state by state
+validated_margin16_state <- pooled %>%
+  filter(year == 2016, !choice %in% c("I Won't Vote In This Election"), !is.na(choice), validated == 'Voted') %>%
+  group_by(state, choice) %>%
+  summarise(n = sum(weight)) %>%
+  mutate(vote_share = n/sum(n))
+validated_margin16_state <- validated_margin16_state %>%
+  mutate(margin = 100*(vote_share - lag(vote_share, default=first(vote_share)))) %>%
+  filter(choice == "Hillary Clinton (Democrat)") %>%
+  select(state, margin)
 
 ############
 
