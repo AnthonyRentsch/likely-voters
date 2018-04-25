@@ -14,6 +14,11 @@ library(survey)
 library(randomForest)
 library(haven)
 library(labelled)
+library(ggpubr)
+library(grid)
+library(grDevices)
+theme_set(theme_bw())
+theme(panel.border = element_blank())
 
 # upload CCES data
 cces16 <- read_tsv(file = "/Users/anthonyrentsch/Desktop/UMass/thesis/data/CCES16_Common_OUTPUT_Feb2018_VV.tab",
@@ -439,6 +444,7 @@ pooled$eligible[pooled$year %in% c(2010, 2014) & pooled$age < 20] <- 0
 pooled$eligible[pooled$year %in% c(2010, 2014) & pooled$age >= 20] <- 1
 pooled$eligible[pooled$year == 2016 & pooled$age < 22] <- 0
 pooled$eligible[pooled$year == 2016 & pooled$age >= 22] <- 1
+pooled$eligible <- as.factor(pooled$eligible)
 
 # calculated margin among 2016 validated voters, nationally
 validated_margin16 <- pooled %>%

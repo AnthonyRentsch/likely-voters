@@ -1,6 +1,6 @@
 ---
 title: "Analysis Part I - National Models"
-date: "March 14, 2018"
+date: "April 25, 2018"
 output:
   github_document:
     toc: true
@@ -18,7 +18,7 @@ knitr::read_chunk('load.R')
 
 ```{r, echo = FALSE, include = FALSE}
 # run load.R 
-# <<load>> 
+ <<load>> 
 ```
 
 # Introduction
@@ -168,7 +168,7 @@ fig1 <- df %>%
   ggplot() +
   geom_col(aes(model, margin)) +
   coord_flip() +
-  geom_hline(yintercept = validated_margin16, lty = 2, colour = "red") +
+  geom_hline(yintercept = validated_margin16, lty = 2, size = 1, colour = "red") +
   labs(x = "", y = "Clinton's predicted margin of victory")
 fig1
 ```
@@ -187,11 +187,16 @@ Note that this will necessarily exclude any respondent who was too young to vote
 ```{r, echo = FALSE, warning = FALSE}
 validation_intent_history <- function(intention, history){
   willvote <- pooled %>% 
-    filter(year == 2016, intent %in% intention, vote_history %in% history 
-           # age <= 22
-           )
-  wontvote <- pooled %>% filter(year == 2016) %>% 
+    filter(year == 2016, intent %in% intention, vote_history %in% history, age >= 22)
+  wontvote <- pooled %>% filter(year == 2016, age >= 22) %>% 
     anti_join(willvote, by = "case_id")
+  # add voters ineligible to vote in 2012
+  ineligible_voters12_willvote <- pooled %>% filter(age < 22, intent %in% intention)
+  ineligible_voters12_wontvote <- pooled %>% filter(age < 22) %>% 
+    anti_join(ineligible_voters12_willvote, by = "case_id")
+  
+  willvote <- rbind(willvote, ineligible_voters12_willvote)
+  wontvote <- rbind(wontvote, ineligible_voters12_wontvote)
 
   pred_voters <- willvote %>% 
     count(validated = (validated == 'Voted')) %>% 
@@ -270,8 +275,13 @@ display
 
 ```{r, echo = FALSE, warning = FALSE}
 vote_choice_intent <- function(intention, history){
-  pooled %>% 
-  filter(year == 2016, intent %in% intention, vote_history %in% history) %>% 
+  voters_eligible12 <- pooled %>% 
+    filter(year == 2016, intent %in% intention, vote_history %in% history, age >= 22) 
+  voters_ineligible12 <- pooled %>% 
+    filter(year == 2016, intent %in% intention, age < 22) 
+  voters <- rbind(voters_eligible12, voters_ineligible12)
+  
+ voters %>% 
   filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
                        "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
                        "I'm Not Sure")) %>% 
@@ -326,15 +336,15 @@ df2$model <- factor(df2$model, levels = df2$model)
 df_combined <- join_all(list(df1, df2), by = "model")
 names(df_combined) <- c("model", "Voted in 2012", "All")
 
-fig2 <- df_combined %>% gather(`Vote history`, value, `Voted in 2012`:All) %>%  
+fig3 <- df_combined %>% gather(`Vote history`, value, `Voted in 2012`:All) %>%  
   ggplot(aes(factor(model), value, fill = `Vote history`)) +
   geom_bar(stat = "identity", position = "dodge") +
   theme(axis.text.y = element_text(angle = 30, hjust = 1)) +
   coord_flip() +
   labs(x = "", y = "Clinton's predicted margin of victory") +
   scale_fill_grey() +
-  geom_hline(yintercept = validated_margin16, lty = 2, colour = "red")
-fig2 
+  geom_hline(yintercept = validated_margin16, lty = 2, size = 1, colour = "red")
+fig3
 ```
 
 My takeaway is that adding vote history does not add much information on top of vote intent. But this is just for 2016 election predictions - may be useful to predict individual-level turnout and may be useful for other elections still.
@@ -473,13 +483,13 @@ while(i <= length(mods)){
 
 df$model <- factor(df$model, levels = df$model)
 
-fig3 <- df %>%  
+fig5 <- df %>%  
   ggplot() +
   geom_col(aes(model, margin)) +
   coord_flip() +
   labs(x = "", y = "Clinton's predicted margin of victory") +
-  geom_hline(yintercept = validated_margin16, lty = 2, colour = "red")
-fig3
+  geom_hline(yintercept = validated_margin16, lty = 2, size = 1, colour = "red")
+fig5
 ```
 
 
@@ -503,7 +513,8 @@ train <- pooled %>% filter(year %in% c(2008,2010,2012,2014))
 test <- pooled %>% filter(year == 2016)
 
 # run unweighted model
-formula <- as.formula(validated ~ vote_history*intent + interest + registration + eligible)
+formula <- as.formula(validated ~ vote_history*intent + interest + 
+                        registration + eligible)
 model <- glm(formula, family = binomial(link = "logit"), data = train)
 
 # run weighted model
@@ -574,17 +585,19 @@ while(i <= length(turnout_rates)){
 }
 
 # plot lines for the two rates
-true_pos_neg_rates_by_turnout %>% 
+fig7a <- true_pos_neg_rates_by_turnout %>% 
   rename(true_positive = V1, true_negative = V2, i = V3) %>% 
   ggplot() +
   geom_line(aes(x = turnout_rates[i]*100, y = true_positive, lty = "True positive")) +
   geom_line(aes(x = turnout_rates[i]*100, y = true_negative, lty = "True negative")) +
-  geom_vline(xintercept = 60.2, lty = 4) +
-  labs(title = "True positive and true negative rates for 2016 CCES sample",
+  #geom_vline(xintercept = 60.2, lty = 4) +
+  labs(title = "a. Perry-Gallup index",
        x = "Turnout rate (%)",
        y = "",
        lty = "Type") +
-    theme(legend.title=element_blank())
+    theme(legend.title=element_blank(),
+          plot.title = element_text(hjust = 0.5))
+fig7a
 ```
 
 ### Election Predictions
@@ -640,20 +653,21 @@ while(i <= length(turnout_rates)){
 margin_by_turnout <- margin_by_turnout %>% rename(margin = V1, i = V2)
 weighted_margin_by_turnout <- weighted_margin_by_turnout %>% rename(margin = V1, i = V2)
 
-ggplot() +
+fig8a <- ggplot() +
   geom_point(data = margin_by_turnout, 
              aes(x = turnout_rates[i]*100, y = margin), colour = "grey", alpha = 0.8) +
   geom_hline(yintercept = 
                weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100], 
              lty = 2, col = "black") +
-  geom_text(aes(93, weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100],
-                label = "weighted margin", vjust = -1)) +
+  #geom_text(aes(93, weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100],
+                #label = "weighted margin", vjust = -1)) +
   geom_hline(yintercept = validated_margin16, lty = 2, col = "red") +
-  geom_text(aes(89.5, validated_margin16, label = "validated voter margin", vjust = -1)) +
-  labs(title = paste0("Clinton's predicted margin of victory computed from 2016 CCES sample (N = ",
-                      nrow(predictions), ")", sep = ""),
+  #geom_text(aes(89.5, validated_margin16, label = "validated voter margin", vjust = -1)) +
+  labs(title = "a. Perry-Gallup index",
        x = "Turnout (%)",
-       y = "Clinton's predicted margin of victory")
+       y = "Clinton's predicted margin of victory") +
+  theme(plot.title = element_text(hjust = 0.5))
+fig8a
 ```
 
 
@@ -755,22 +769,24 @@ while(i <= length(turnout_rates)){
 }
 
 # plot lines for the two rates
-true_pos_neg_rates_by_turnout %>% 
+fig7b <- true_pos_neg_rates_by_turnout %>% 
   rename(true_positive = V1, true_negative = V2, i = V3) %>% 
   ggplot() +
   geom_line(aes(x = turnout_rates[i]*100, y = true_positive, lty = "True positive")) +
   geom_line(aes(x = turnout_rates[i]*100, y = true_negative, lty = "True negative")) +
-  geom_vline(xintercept = 60.2, lty = 4) +
-  labs(title = "True positive and true negative rates for holdout sample",
+  #geom_vline(xintercept = 60.2, lty = 4) +
+  labs(title = "b. Perry-Gallup index + all variables potentially related to turnout",
        x = "Turnout rate (%)",
        y = "",
        lty = "Type") +
-    theme(legend.title=element_blank())
+    theme(legend.title=element_blank(),
+          plot.title = element_text(hjust = 0.5))
+fig7b
 ```
 
 ### Election Predictions
 
-````{r, echo = FALSE, message = FALSE, warning = FALSE}
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
 # no propensity weight for margin
 vote_choice_logreg <- function(turnout){
   predictions %>% 
@@ -819,20 +835,21 @@ while(i <= length(turnout_rates)){
 margin_by_turnout <- margin_by_turnout %>% rename(margin = V1, i = V2)
 weighted_margin_by_turnout <- weighted_margin_by_turnout %>% rename(margin = V1, i = V2)
 
-ggplot() +
+fig8b <- ggplot() +
   geom_point(data = margin_by_turnout, 
              aes(x = turnout_rates[i]*100, y = margin), colour = "grey", alpha = 0.8) +
   geom_hline(yintercept = 
                weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100], 
              lty = 2, col = "black") +
-  geom_text(aes(93, weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100],
-                label = "weighted margin", vjust = -1)) +
+  #geom_text(aes(93, weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100],
+                #label = "weighted margin", vjust = -1)) +
   geom_hline(yintercept = validated_margin16, lty = 2, col = "red") +
-  geom_text(aes(89.5, validated_margin16, label = "validated voter margin", vjust = -1)) +
-  labs(title = paste0("Clinton's predicted margin of victory computed from 2016 CCES sample (N = ",
-                      nrow(predictions), ")", sep = ""),
+  #geom_text(aes(89.5, validated_margin16, label = "validated voter margin", vjust = -1)) +
+  labs(title = "b. Perry-Gallup index + all variables potentially related to turnout",
        x = "Turnout (%)",
-       y = "Clinton's predicted margin of victory")
+       y = "Clinton's predicted margin of victory") + 
+  theme(plot.title = element_text(hjust = 0.5))
+fig8b
 ```
 
 
@@ -929,17 +946,19 @@ while(i <= length(turnout_rates)){
 }
 
 # plot lines for the two rates
-true_pos_neg_rates_by_turnout %>% 
+fig7c <- true_pos_neg_rates_by_turnout %>% 
   rename(true_positive = V1, true_negative = V2, i = V3) %>% 
   ggplot() +
   geom_line(aes(x = turnout_rates[i]*100, y = true_positive, lty = "True positive")) +
   geom_line(aes(x = turnout_rates[i]*100, y = true_negative, lty = "True negative")) +
-  geom_vline(xintercept = 60.2, lty = 4) +
-  labs(title = "True positive and true negative rates for holdout sample",
+  #geom_vline(xintercept = 60.2, lty = 4) +
+  labs(title = "c. Perry-Gallup index + all variables potentially related to turnout \n + structural election variables",
        x = "Turnout rate (%)",
        y = "",
        lty = "Type") +
-    theme(legend.title=element_blank())
+    theme(legend.title=element_blank(),
+          plot.title = element_text(hjust = 0.5))
+fig7c
 ```
 
 ### Election Predictions
@@ -993,20 +1012,21 @@ while(i <= length(turnout_rates)){
 margin_by_turnout <- margin_by_turnout %>% rename(margin = V1, i = V2)
 weighted_margin_by_turnout <- weighted_margin_by_turnout %>% rename(margin = V1, i = V2)
 
-ggplot() +
+fig8c <- ggplot() +
   geom_point(data = margin_by_turnout, 
              aes(x = turnout_rates[i]*100, y = margin), colour = "grey", alpha = 0.8) +
   geom_hline(yintercept = 
                weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100], 
              lty = 2, col = "black") +
-  geom_text(aes(93, weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100],
-                label = "weighted margin", vjust = -1)) +
+  #geom_text(aes(93, weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100],
+                #label = "weighted margin", vjust = -1)) +
   geom_hline(yintercept = validated_margin16, lty = 2, col = "red") +
-  geom_text(aes(89.5, validated_margin16, label = "validated voter margin", vjust = -1)) +
-  labs(title = paste0("Clinton's predicted margin of victory computed from 2016 CCES sample (N = ",
-                      nrow(predictions), ")", sep = ""),
+  #geom_text(aes(89.5, validated_margin16, label = "validated voter margin", vjust = -1)) +
+  labs(title = "c. Perry-Gallup index + all variables potentially related to turnout \n + structural election variables",
        x = "Turnout (%)",
-       y = "Clinton's predicted margin of victory")
+       y = "Clinton's predicted margin of victory") +
+  theme(plot.title = element_text(hjust = 0.5))
+fig8c
 ```
 
 
@@ -1037,7 +1057,8 @@ test$eligible[test$age < 22] <- 0
 test$eligible[test$age >= 22] <- 1
 
 # run model
-formula <- as.formula(validated ~ vote_history + intent + interest + registration + eligible)
+formula <- as.formula(validated ~ vote_history + intent + interest + registration + 
+                        eligible)
 model <- randomForest(formula, data = train)
 
 # apply the models to test data
@@ -1098,17 +1119,19 @@ while(i <= length(turnout_rates)){
 }
 
 # plot lines for the two rates
-true_pos_neg_rates_by_turnout %>% 
+fig11a <- true_pos_neg_rates_by_turnout %>% 
   rename(true_positive = V1, true_negative = V2, i = V3) %>% 
   ggplot() +
   geom_line(aes(x = turnout_rates[i]*100, y = true_positive, lty = "True positive")) +
   geom_line(aes(x = turnout_rates[i]*100, y = true_negative, lty = "True negative")) +
-  geom_vline(xintercept = 60.2, lty = 4) +
-  labs(title = "True positive and true negative rates for holdout sample",
+  #geom_vline(xintercept = 60.2, lty = 4) +
+  labs(title = "a. Perry-Gallup index",
        x = "Turnout rate (%)",
        y = "",
        lty = "Type") +
-    theme(legend.title=element_blank())
+    theme(legend.title=element_blank(),
+          plot.title = element_text(hjust = 0.5))
+fig11a
 ```
 
 ### Election Predictions
@@ -1162,20 +1185,21 @@ while(i <= length(turnout_rates)){
 margin_by_turnout <- margin_by_turnout %>% rename(margin = V1, i = V2)
 weighted_margin_by_turnout <- weighted_margin_by_turnout %>% rename(margin = V1, i = V2)
 
-ggplot() +
+fig12a <- ggplot() +
   geom_point(data = margin_by_turnout, 
              aes(x = turnout_rates[i]*100, y = margin), colour = "grey", alpha = 0.8) +
   geom_hline(yintercept = 
                weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100], 
              lty = 2, col = "black") +
-  geom_text(aes(95, weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100],
-                label = "weighted margin", vjust = -1)) +
+  #geom_text(aes(95, weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100],
+               # label = "weighted margin", vjust = -1)) +
   geom_hline(yintercept = validated_margin16, lty = 2, col = "red") +
-  geom_text(aes(91, validated_margin16, label = "validated voter margin", vjust = -1)) +
-  labs(title = paste0("Clinton's predicted margin of victory computed from 2016 CCES sample (N = ",
-                      nrow(predictions), ")", sep = ""),
+  #geom_text(aes(91, validated_margin16, label = "validated voter margin", vjust = -1)) +
+  labs(title = "a. Perry-Gallup index",
        x = "Turnout (%)",
-       y = "Clinton's predicted margin of victory")
+       y = "Clinton's predicted margin of victory") +
+  theme(plot.title = element_text(hjust = 0.5))
+fig12a
 ```
 
 ## Perry-Gallup index + all variables potentially related to turnout
@@ -1266,17 +1290,19 @@ while(i <= length(turnout_rates)){
 }
 
 # plot lines for the two rates
-true_pos_neg_rates_by_turnout %>% 
+fig11b <- true_pos_neg_rates_by_turnout %>% 
   rename(true_positive = V1, true_negative = V2, i = V3) %>% 
   ggplot() +
   geom_line(aes(x = turnout_rates[i]*100, y = true_positive, lty = "True positive")) +
   geom_line(aes(x = turnout_rates[i]*100, y = true_negative, lty = "True negative")) +
-  geom_vline(xintercept = 60.2, lty = 4) +
-  labs(title = "True positive and true negative rates for holdout sample",
+  #geom_vline(xintercept = 60.2, lty = 4) +
+  labs(title = "b. Perry-Gallup index + all variables potentially related to turnout",
        x = "Turnout rate (%)",
        y = "",
        lty = "Type") +
-    theme(legend.title=element_blank())
+    theme(legend.title=element_blank(),
+          plot.title = element_text(hjust = 0.5))
+fig11b
 ```
 
 ### Election Predictions
@@ -1330,20 +1356,21 @@ while(i <= length(turnout_rates)){
 margin_by_turnout <- margin_by_turnout %>% rename(margin = V1, i = V2)
 weighted_margin_by_turnout <- weighted_margin_by_turnout %>% rename(margin = V1, i = V2)
 
-ggplot() +
+fig12b <- ggplot() +
   geom_point(data = margin_by_turnout, 
              aes(x = turnout_rates[i]*100, y = margin), colour = "grey", alpha = 0.8) +
   geom_hline(yintercept = 
                weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100], 
              lty = 2, col = "black") +
-  geom_text(aes(93, weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100],
-                label = "weighted margin", vjust = 2)) +
+  #geom_text(aes(93, weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100],
+               # label = "weighted margin", vjust = 2)) +
   geom_hline(yintercept = validated_margin16, lty = 2, col = "red") +
-  geom_text(aes(89.5, validated_margin16, label = "validated voter margin", vjust = -1)) +
-  labs(title = paste0("Clinton's predicted margin of victory computed from 2016 CCES sample (N = ",
-                      nrow(predictions), ")", sep = ""),
+  #geom_text(aes(89.5, validated_margin16, label = "validated voter margin", vjust = -1)) +
+  labs(title = "b. Perry-Gallup index + all variables potentially related to turnout",
        x = "Turnout (%)",
-       y = "Clinton's predicted margin of victory")
+       y = "Clinton's predicted margin of victory") +
+  theme(plot.title = element_text(hjust = 0.5))
+fig12b
 ```
 
 
@@ -1431,17 +1458,19 @@ while(i <= length(turnout_rates)){
 }
 
 # plot lines for the two rates
-true_pos_neg_rates_by_turnout %>% 
+fig11c <- true_pos_neg_rates_by_turnout %>% 
   rename(true_positive = V1, true_negative = V2, i = V3) %>% 
   ggplot() +
   geom_line(aes(x = turnout_rates[i]*100, y = true_positive, lty = "True positive")) +
   geom_line(aes(x = turnout_rates[i]*100, y = true_negative, lty = "True negative")) +
-  geom_vline(xintercept = 60.2, lty = 4) +
-  labs(title = "True positive and true negative rates for holdout sample",
+  #geom_vline(xintercept = 60.2, lty = 4) +
+  labs(title = "c. Perry-Gallup index + all variables potentially related to turnout \n + structural election variables",
        x = "Turnout rate (%)",
        y = "",
        lty = "Type") +
-    theme(legend.title=element_blank())
+    theme(legend.title=element_blank(),
+          plot.title = element_text(hjust = 0.5))
+fig11c
 ```
 
 ### Election Predictions
@@ -1495,19 +1524,20 @@ while(i <= length(turnout_rates)){
 margin_by_turnout <- margin_by_turnout %>% rename(margin = V1, i = V2)
 weighted_margin_by_turnout <- weighted_margin_by_turnout %>% rename(margin = V1, i = V2)
 
-ggplot() +
+fig12c <- ggplot() +
   geom_point(data = margin_by_turnout, 
              aes(x = turnout_rates[i]*100, y = margin), colour = "grey", alpha = 0.8) +
   geom_hline(yintercept = 
                weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100], 
              lty = 2, col = "black") +
-  geom_text(aes(93, weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100],
-                label = "weighted margin", vjust = 3.5)) +
+  #geom_text(aes(93, weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i == 100],
+              #  label = "weighted margin", vjust = 3.5)) +
   geom_hline(yintercept = validated_margin16, lty = 2, col = "red") +
-  geom_text(aes(91, validated_margin16, label = "validated voter margin", vjust = -2.5)) +
-  labs(title = paste0("Clinton's predicted margin of victory computed from 2016 CCES sample (N = ",
-                      nrow(predictions), ")", sep = ""),
+  #geom_text(aes(91, validated_margin16, label = "validated voter margin", vjust = -2.5)) +
+  labs(title = "c. Perry-Gallup index + all variables potentially related to turnout \n + structural election variables",
        x = "Turnout (%)",
-       y = "Clinton's predicted margin of victory")
+       y = "Clinton's predicted margin of victory") +
+  theme(plot.title = element_text(hjust = 0.5))
+fig12c
 ```
 

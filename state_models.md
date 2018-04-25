@@ -1,6 +1,6 @@
 Analysis Part II - State Models
 ================
-March 21, 2018
+April 25, 2018
 
 -   [Introduction](#introduction)
 -   [Vote Intent](#vote-intent)
@@ -17,6 +17,9 @@ March 21, 2018
     -   [Perry-Gallup index + + all variables potentially related to turnout](#perry-gallup-index-all-variables-potentially-related-to-turnout)
     -   [Perry-Gallup index + all variables potentially related to turnout + structural election variables](#perry-gallup-index-all-variables-potentially-related-to-turnout-structural-election-variables)
 -   [Random Forest](#random-forest)
+    -   [Perry-Gallup index](#perry-gallup-index-2)
+    -   [Perry-Gallup index + all variables potentially related to turnout](#perry-gallup-index-all-variables-potentially-related-to-turnout-1)
+    -   [Perry-Gallup index + all variables potentially related to turnout + structural election variables](#perry-gallup-index-all-variables-potentially-related-to-turnout-structural-election-variables-1)
 
 Introduction
 ============
@@ -138,10 +141,10 @@ Looks like this overestimates Clinton's chances a bit. The average difference be
 
 | model                                                        |  mean\_error|       MSE|
 |:-------------------------------------------------------------|------------:|---------:|
-| Already voted + will definitely vote                         |     2.491078|  43.18726|
-| Already voted + will definitely or probably vote             |     2.634608|  46.69294|
-| Already voted + will definitely or probably vote + undecided |     2.563137|  42.54534|
-| All respondents                                              |     2.560196|  47.25696|
+| Already voted + will definitely vote                         |     2.812843|  41.86177|
+| Already voted + will definitely or probably vote             |     2.976471|  46.99743|
+| Already voted + will definitely or probably vote + undecided |     3.077549|  44.44023|
+| All respondents                                              |     3.145588|  50.39356|
 
 Perry-Gallup Index
 ==================
@@ -160,13 +163,13 @@ Election Predictions
 
 ![](state_models_files/figure-markdown_github/unnamed-chunk-13-1.png)
 
-| model                  |  mean\_error|       MSE|
-|:-----------------------|------------:|---------:|
-| 6s and 5s              |    -2.349608|  84.97869|
-| 6s, 5s, and 4s         |     1.449804|  44.02442|
-| 6s, 5s, 4s, and 3s     |     2.405490|  48.38613|
-| 6s, 5s, 4s, 3s, and 2s |     2.397255|  50.76708|
-| All                    |     2.282157|  48.79396|
+| model                      |  mean\_error|       MSE|
+|:---------------------------|------------:|---------:|
+| 6s and 5s                  |    -2.349608|  84.97869|
+| 6s, 5s, and 4s             |     1.449804|  44.02442|
+| 6s, 5s, 4s, and 3s         |     2.405490|  48.38613|
+| 6s, 5s, 4s, 3s, and 2s     |     2.397255|  50.76708|
+| 6s, 5s, 4s, 3s, 2s, and 1s |     2.282157|  48.79396|
 
 Logistic Regression
 ===================
@@ -247,3 +250,42 @@ I'll first visualize the distribution of vote propensity scores for 9 random sta
 
 Random Forest
 =============
+
+Perry-Gallup index
+------------------
+
+I'll first visualize the distribution of vote propensity scores for 9 random states using this model.
+
+![](state_models_files/figure-markdown_github/unnamed-chunk-31-1.png)
+
+### Election Predictions
+
+![](state_models_files/figure-markdown_github/unnamed-chunk-33-1.png)
+
+![](state_models_files/figure-markdown_github/unnamed-chunk-34-1.png)
+
+Perry-Gallup index + all variables potentially related to turnout
+-----------------------------------------------------------------
+
+I'll first visualize the distribution of vote propensity scores for 9 random states using this model.
+
+![](state_models_files/figure-markdown_github/unnamed-chunk-36-1.png)
+
+### Election Predictions
+
+![](state_models_files/figure-markdown_github/unnamed-chunk-38-1.png)
+
+![](state_models_files/figure-markdown_github/unnamed-chunk-39-1.png)
+
+Perry-Gallup index + all variables potentially related to turnout + structural election variables
+-------------------------------------------------------------------------------------------------
+
+I'll first visualize the distribution of vote propensity scores for 9 random states using this model.
+
+![](state_models_files/figure-markdown_github/unnamed-chunk-41-1.png)
+
+### Election Predictions
+
+![](state_models_files/figure-markdown_github/unnamed-chunk-43-1.png)
+
+![](state_models_files/figure-markdown_github/unnamed-chunk-44-1.png)
