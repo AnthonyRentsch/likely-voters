@@ -1,6 +1,6 @@
 ---
 title: "Analysis Part II - State Models"
-date: "April 25, 2018"
+date: "May 8, 2018"
 output:
   github_document:
     toc: true
@@ -204,7 +204,12 @@ df <- rbind(df, temp)
 }
 
 # calculate actual margins in each state among validated voters
-state_margins <- pooled %>% filter(year == 2016, validated == "Voted") %>% 
+state_margins <- pooled %>% filter(year == 2016, validated == "Voted",
+                                   choice %in% c("Donald Trump (Republican)",
+                                                 "Hillary Clinton (Democrat)",
+                                                 "Gary Johnson (Libertarian)",
+                                                 "Jill Stein (Green)","Other",
+                                                 "I'm Not Sure")) %>% 
   group_by(state, choice) %>%
   summarise(n = sum(weight)) %>% 
   mutate(vote_share = round(100*n/sum(n),2)) %>% 
@@ -696,65 +701,70 @@ ggplot() +
 ```
 
 ```{r, include = FALSE, echo = FALSE, warning = FALSE, message = FALSE}
-# consider turnout rates from 0.01 to 0.99 by 1
-turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
-
-# set up work
-all_states <- unique(pooled$state)
-true_pos_neg_rates_by_turnout_all <- data.frame()
-
-# calculate true positive and negative rates for each level of turnout
-validation_by_logreg_state <- function(location, turnout){
-  willvote <- predictions_all %>% filter(state == location) %>% 
-    top_n(round(nrow(predictions_all)*turnout,0), wt = response)
-  wontvote <- predictions_all %>% filter(state == location) %>% 
-    anti_join(willvote, by = "case_id")
-
-  pred_voters <- willvote %>% 
-    count(validated = (validated == 'Voted')) %>% 
-    mutate(percent = round((n/sum(n))*100,2)) %>% 
-    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
-    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
-    select(-n)
-  
-  pred_nonvoters <- wontvote %>% 
-    count(validated = (validated == 'Voted')) %>% 
-    mutate(percent = round((n/sum(n))*100,2)) %>% 
-    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
-    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
-    select(-n)
-  
-  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
-    rename(voters = percent_v, nonvoters = percent_nv)
-}
-
-# loop through each state and calculate true positive/negative rates by turnout
-# not particularly sure this is a good way to do this because there is so little distinction 
-# between propensity scores here (for this set of predictors)
-
-for (i in all_states){
-true_pos_neg_rates_by_turnout <- data.frame()
-j <- 1
-while(j <= length(turnout_rates)){
-   temp <- validation_by_logreg_state(i, turnout_rates[j])
-   true_pos_neg_rates_by_turnout[j,1] <- temp$voters[temp$validated=="Yes"]
-   true_pos_neg_rates_by_turnout[j,2] <- temp$nonvoters[temp$validated=="No"]
-   true_pos_neg_rates_by_turnout[j,3] <- j
-   true_pos_neg_rates_by_turnout[j,4] <- i
-   j = j +1
-}
-true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, true_pos_neg_rates_by_turnout)
-}
+# # consider turnout rates from 0.01 to 0.99 by 1
+# turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
+# 
+# # set up work
+# all_states <- unique(pooled$state)
+# true_pos_neg_rates_by_turnout_all <- data.frame()
+# 
+# # calculate true positive and negative rates for each level of turnout
+# validation_by_logreg_state <- function(location, turnout){
+#   willvote <- predictions_all %>% filter(state == location) %>% 
+#     top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+#         wt = response)
+#   wontvote <- predictions_all %>% filter(state == location) %>% 
+#     anti_join(willvote, by = "case_id")
+# 
+#   pred_voters <- willvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   pred_nonvoters <- wontvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+#     rename(voters = percent_v, nonvoters = percent_nv)
+# }
+# 
+# # loop through each state and calculate true positive/negative rates by turnout
+# # not particularly sure this is a good way to do this because there is so little distinction 
+# # between propensity scores here (for this set of predictors)
+# 
+# for (i in all_states){
+# true_pos_neg_rates_by_turnout <- data.frame()
+# j <- 1
+# while(j <= length(turnout_rates)){
+#    temp <- validation_by_logreg_state(i, turnout_rates[j])
+#    true_pos_neg_rates_by_turnout[j,1] <- temp$voters[temp$validated=="Yes"]
+#    true_pos_neg_rates_by_turnout[j,2] <- temp$nonvoters[temp$validated=="No"]
+#    true_pos_neg_rates_by_turnout[j,3] <- j
+#    true_pos_neg_rates_by_turnout[j,4] <- i
+#    j = j +1
+# }
+# true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, true_pos_neg_rates_by_turnout)
+# }
 
 ```
 
 ### Election Predictions
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# consider turnout rates from 0.01 to 0.99 by 1
+turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
+
 # no propensity weight for margin
 vote_choice_logreg_state <- function(location, turnout){
   predictions_all %>% filter(state == location) %>% 
-  top_n(round(nrow(predictions)*turnout,0), wt = response) %>% 
+  top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+        wt = response) %>% 
   filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
                        "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
                        "I'm Not Sure")) %>% 
@@ -956,55 +966,56 @@ ggplot() +
 ```
 
 ```{r, include = FALSE, echo = FALSE, warning = FALSE, message = FALSE}
-# consider turnout rates from 0.01 to 0.99 by 1
-turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
-
-# set up work
-all_states <- unique(pooled$state)
-true_pos_neg_rates_by_turnout_all <- data.frame()
-
-# calculate true positive and negative rates for each level of turnout
-validation_by_logreg_state <- function(location, turnout){
-  willvote <- predictions_all %>% filter(state == location) %>% 
-    top_n(round(nrow(predictions_all)*turnout,0), wt = response)
-  wontvote <- predictions_all %>% filter(state == location) %>% 
-    anti_join(willvote, by = "case_id")
-
-  pred_voters <- willvote %>% 
-    count(validated = (validated == 'Voted')) %>% 
-    mutate(percent = round((n/sum(n))*100,2)) %>% 
-    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
-    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
-    select(-n)
-  
-  pred_nonvoters <- wontvote %>% 
-    count(validated = (validated == 'Voted')) %>% 
-    mutate(percent = round((n/sum(n))*100,2)) %>% 
-    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
-    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
-    select(-n)
-  
-  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
-    rename(voters = percent_v, nonvoters = percent_nv)
-}
-
-# loop through each state and calculate true positive/negative rates by turnout
-# not particularly sure this is a good way to do this because there is so little distinction 
-# between propensity scores here (for this set of predictors)
-
-for (i in all_states){
-true_pos_neg_rates_by_turnout <- data.frame()
-j <- 1
-while(j <= length(turnout_rates)){
-   temp <- validation_by_logreg_state(i, turnout_rates[j])
-   true_pos_neg_rates_by_turnout[j,1] <- temp$voters[temp$validated=="Yes"]
-   true_pos_neg_rates_by_turnout[j,2] <- temp$nonvoters[temp$validated=="No"]
-   true_pos_neg_rates_by_turnout[j,3] <- j
-   true_pos_neg_rates_by_turnout[j,4] <- i
-   j = j +1
-}
-true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, true_pos_neg_rates_by_turnout)
-}
+# # consider turnout rates from 0.01 to 0.99 by 1
+# turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
+# 
+# # set up work
+# all_states <- unique(pooled$state)
+# true_pos_neg_rates_by_turnout_all <- data.frame()
+# 
+# # calculate true positive and negative rates for each level of turnout
+# validation_by_logreg_state <- function(location, turnout){
+#   willvote <- predictions_all %>% filter(state == location) %>% 
+#     top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+#         wt = response)
+#   wontvote <- predictions_all %>% filter(state == location) %>% 
+#     anti_join(willvote, by = "case_id")
+# 
+#   pred_voters <- willvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   pred_nonvoters <- wontvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+#     rename(voters = percent_v, nonvoters = percent_nv)
+# }
+# 
+# # loop through each state and calculate true positive/negative rates by turnout
+# # not particularly sure this is a good way to do this because there is so little distinction 
+# # between propensity scores here (for this set of predictors)
+# 
+# for (i in all_states){
+# true_pos_neg_rates_by_turnout <- data.frame()
+# j <- 1
+# while(j <= length(turnout_rates)){
+#    temp <- validation_by_logreg_state(i, turnout_rates[j])
+#    true_pos_neg_rates_by_turnout[j,1] <- temp$voters[temp$validated=="Yes"]
+#    true_pos_neg_rates_by_turnout[j,2] <- temp$nonvoters[temp$validated=="No"]
+#    true_pos_neg_rates_by_turnout[j,3] <- j
+#    true_pos_neg_rates_by_turnout[j,4] <- i
+#    j = j +1
+# }
+# true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, true_pos_neg_rates_by_turnout)
+# }
 ```
 
 ### Election Predictions
@@ -1013,7 +1024,8 @@ true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, tr
 # no propensity weight for margin
 vote_choice_logreg_state <- function(location, turnout){
   predictions_all %>% filter(state == location) %>% 
-  top_n(round(nrow(predictions)*turnout,0), wt = response) %>% 
+  top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+        wt = response) %>% 
   filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
                        "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
                        "I'm Not Sure")) %>% 
@@ -1212,55 +1224,56 @@ ggplot() +
 ```
 
 ```{r, include = FALSE, echo = FALSE, warning = FALSE, message = FALSE}
-# consider turnout rates from 0.01 to 0.99 by 1
-turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
-
-# set up work
-all_states <- unique(pooled$state)
-true_pos_neg_rates_by_turnout_all <- data.frame()
-
-# calculate true positive and negative rates for each level of turnout
-validation_by_logreg_state <- function(location, turnout){
-  willvote <- predictions_all %>% filter(state == location) %>% 
-    top_n(round(nrow(predictions_all)*turnout,0), wt = response)
-  wontvote <- predictions_all %>% filter(state == location) %>% 
-    anti_join(willvote, by = "case_id")
-
-  pred_voters <- willvote %>% 
-    count(validated = (validated == 'Voted')) %>% 
-    mutate(percent = round((n/sum(n))*100,2)) %>% 
-    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
-    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
-    select(-n)
-  
-  pred_nonvoters <- wontvote %>% 
-    count(validated = (validated == 'Voted')) %>% 
-    mutate(percent = round((n/sum(n))*100,2)) %>% 
-    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
-    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
-    select(-n)
-  
-  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
-    rename(voters = percent_v, nonvoters = percent_nv)
-}
-
-# loop through each state and calculate true positive/negative rates by turnout
-# not particularly sure this is a good way to do this because there is so little distinction 
-# between propensity scores here (for this set of predictors)
-
-for (i in all_states){
-true_pos_neg_rates_by_turnout <- data.frame()
-j <- 1
-while(j <= length(turnout_rates)){
-   temp <- validation_by_logreg_state(i, turnout_rates[j])
-   true_pos_neg_rates_by_turnout[j,1] <- temp$voters[temp$validated=="Yes"]
-   true_pos_neg_rates_by_turnout[j,2] <- temp$nonvoters[temp$validated=="No"]
-   true_pos_neg_rates_by_turnout[j,3] <- j
-   true_pos_neg_rates_by_turnout[j,4] <- i
-   j = j +1
-}
-true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, true_pos_neg_rates_by_turnout)
-}
+# # consider turnout rates from 0.01 to 0.99 by 1
+# turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
+# 
+# # set up work
+# all_states <- unique(pooled$state)
+# true_pos_neg_rates_by_turnout_all <- data.frame()
+# 
+# # calculate true positive and negative rates for each level of turnout
+# validation_by_logreg_state <- function(location, turnout){
+#   willvote <- predictions_all %>% filter(state == location) %>% 
+#     top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+#         wt = response)
+#   wontvote <- predictions_all %>% filter(state == location) %>% 
+#     anti_join(willvote, by = "case_id")
+# 
+#   pred_voters <- willvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   pred_nonvoters <- wontvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+#     rename(voters = percent_v, nonvoters = percent_nv)
+# }
+# 
+# # loop through each state and calculate true positive/negative rates by turnout
+# # not particularly sure this is a good way to do this because there is so little distinction 
+# # between propensity scores here (for this set of predictors)
+# 
+# for (i in all_states){
+# true_pos_neg_rates_by_turnout <- data.frame()
+# j <- 1
+# while(j <= length(turnout_rates)){
+#    temp <- validation_by_logreg_state(i, turnout_rates[j])
+#    true_pos_neg_rates_by_turnout[j,1] <- temp$voters[temp$validated=="Yes"]
+#    true_pos_neg_rates_by_turnout[j,2] <- temp$nonvoters[temp$validated=="No"]
+#    true_pos_neg_rates_by_turnout[j,3] <- j
+#    true_pos_neg_rates_by_turnout[j,4] <- i
+#    j = j +1
+# }
+# true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, true_pos_neg_rates_by_turnout)
+# }
 ```
 
 ### Election Predictions
@@ -1269,7 +1282,8 @@ true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, tr
 # no propensity weight for margin
 vote_choice_logreg_state <- function(location, turnout){
   predictions_all %>% filter(state == location) %>% 
-  top_n(round(nrow(predictions)*turnout,0), wt = response) %>% 
+  top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+        wt = response) %>% 
   filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
                        "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
                        "I'm Not Sure")) %>% 
@@ -1438,55 +1452,56 @@ ggplot() +
 ```
 
 ```{r, include = FALSE, echo = FALSE, warning = FALSE, message = FALSE}
-# consider turnout rates from 0.01 to 0.99 by 1
-turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
-
-# set up work
-all_states <- unique(pooled$state)
-true_pos_neg_rates_by_turnout_all <- data.frame()
-
-# calculate true positive and negative rates for each level of turnout
-validation_by_logreg_state <- function(location, turnout){
-  willvote <- predictions_all %>% filter(state == location) %>% 
-    top_n(round(nrow(predictions_all)*turnout,0), wt = Voted)
-  wontvote <- predictions_all %>% filter(state == location) %>% 
-    anti_join(willvote, by = "case_id")
-
-  pred_voters <- willvote %>% 
-    count(validated = (validated == 'Voted')) %>% 
-    mutate(percent = round((n/sum(n))*100,2)) %>% 
-    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
-    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
-    select(-n)
-  
-  pred_nonvoters <- wontvote %>% 
-    count(validated = (validated == 'Voted')) %>% 
-    mutate(percent = round((n/sum(n))*100,2)) %>% 
-    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
-    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
-    select(-n)
-  
-  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
-    rename(voters = percent_v, nonvoters = percent_nv)
-}
-
-# loop through each state and calculate true positive/negative rates by turnout
-# not particularly sure this is a good way to do this because there is so little distinction 
-# between propensity scores here (for this set of predictors)
-
-for (i in all_states){
-true_pos_neg_rates_by_turnout <- data.frame()
-j <- 1
-while(j <= length(turnout_rates)){
-   temp <- validation_by_logreg_state(i, turnout_rates[j])
-   true_pos_neg_rates_by_turnout[j,1] <- temp$voters[temp$validated=="Yes"]
-   true_pos_neg_rates_by_turnout[j,2] <- temp$nonvoters[temp$validated=="No"]
-   true_pos_neg_rates_by_turnout[j,3] <- j
-   true_pos_neg_rates_by_turnout[j,4] <- i
-   j = j +1
-}
-true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, true_pos_neg_rates_by_turnout)
-}
+# # consider turnout rates from 0.01 to 0.99 by 1
+# turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
+# 
+# # set up work
+# all_states <- unique(pooled$state)
+# true_pos_neg_rates_by_turnout_all <- data.frame()
+# 
+# # calculate true positive and negative rates for each level of turnout
+# validation_by_logreg_state <- function(location, turnout){
+#   willvote <- predictions_all %>% filter(state == location) %>% 
+#     top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+#         wt = Voted)
+#   wontvote <- predictions_all %>% filter(state == location) %>% 
+#     anti_join(willvote, by = "case_id")
+# 
+#   pred_voters <- willvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   pred_nonvoters <- wontvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+#     rename(voters = percent_v, nonvoters = percent_nv)
+# }
+# 
+# # loop through each state and calculate true positive/negative rates by turnout
+# # not particularly sure this is a good way to do this because there is so little distinction 
+# # between propensity scores here (for this set of predictors)
+# 
+# for (i in all_states){
+# true_pos_neg_rates_by_turnout <- data.frame()
+# j <- 1
+# while(j <= length(turnout_rates)){
+#    temp <- validation_by_logreg_state(i, turnout_rates[j])
+#    true_pos_neg_rates_by_turnout[j,1] <- temp$voters[temp$validated=="Yes"]
+#    true_pos_neg_rates_by_turnout[j,2] <- temp$nonvoters[temp$validated=="No"]
+#    true_pos_neg_rates_by_turnout[j,3] <- j
+#    true_pos_neg_rates_by_turnout[j,4] <- i
+#    j = j +1
+# }
+# true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, true_pos_neg_rates_by_turnout)
+# }
 
 ```
 
@@ -1496,7 +1511,8 @@ true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, tr
 # no propensity weight for margin
 vote_choice_logreg_state <- function(location, turnout){
   predictions_all %>% filter(state == location) %>% 
-  top_n(round(nrow(predictions)*turnout,0), wt = Voted) %>% 
+  top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+        wt = Voted) %>% 
   filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
                        "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
                        "I'm Not Sure")) %>% 
@@ -1672,55 +1688,56 @@ ggplot() +
 ```
 
 ```{r, include = FALSE, echo = FALSE, warning = FALSE, message = FALSE}
-# consider turnout rates from 0.01 to 0.99 by 1
-turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
-
-# set up work
-all_states <- unique(pooled$state)
-true_pos_neg_rates_by_turnout_all <- data.frame()
-
-# calculate true positive and negative rates for each level of turnout
-validation_by_logreg_state <- function(location, turnout){
-  willvote <- predictions_all %>% filter(state == location) %>% 
-    top_n(round(nrow(predictions_all)*turnout,0), wt = Voted)
-  wontvote <- predictions_all %>% filter(state == location) %>% 
-    anti_join(willvote, by = "case_id")
-
-  pred_voters <- willvote %>% 
-    count(validated = (validated == 'Voted')) %>% 
-    mutate(percent = round((n/sum(n))*100,2)) %>% 
-    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
-    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
-    select(-n)
-  
-  pred_nonvoters <- wontvote %>% 
-    count(validated = (validated == 'Voted')) %>% 
-    mutate(percent = round((n/sum(n))*100,2)) %>% 
-    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
-    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
-    select(-n)
-  
-  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
-    rename(voters = percent_v, nonvoters = percent_nv)
-}
-
-# loop through each state and calculate true positive/negative rates by turnout
-# not particularly sure this is a good way to do this because there is so little distinction 
-# between propensity scores here (for this set of predictors)
-
-for (i in all_states){
-true_pos_neg_rates_by_turnout <- data.frame()
-j <- 1
-while(j <= length(turnout_rates)){
-   temp <- validation_by_logreg_state(i, turnout_rates[j])
-   true_pos_neg_rates_by_turnout[j,1] <- temp$voters[temp$validated=="Yes"]
-   true_pos_neg_rates_by_turnout[j,2] <- temp$nonvoters[temp$validated=="No"]
-   true_pos_neg_rates_by_turnout[j,3] <- j
-   true_pos_neg_rates_by_turnout[j,4] <- i
-   j = j +1
-}
-true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, true_pos_neg_rates_by_turnout)
-}
+# # consider turnout rates from 0.01 to 0.99 by 1
+# turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
+# 
+# # set up work
+# all_states <- unique(pooled$state)
+# true_pos_neg_rates_by_turnout_all <- data.frame()
+# 
+# # calculate true positive and negative rates for each level of turnout
+# validation_by_logreg_state <- function(location, turnout){
+#   willvote <- predictions_all %>% filter(state == location) %>% 
+#     top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+#         wt = Voted)
+#   wontvote <- predictions_all %>% filter(state == location) %>% 
+#     anti_join(willvote, by = "case_id")
+# 
+#   pred_voters <- willvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   pred_nonvoters <- wontvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+#     rename(voters = percent_v, nonvoters = percent_nv)
+# }
+# 
+# # loop through each state and calculate true positive/negative rates by turnout
+# # not particularly sure this is a good way to do this because there is so little distinction 
+# # between propensity scores here (for this set of predictors)
+# 
+# for (i in all_states){
+# true_pos_neg_rates_by_turnout <- data.frame()
+# j <- 1
+# while(j <= length(turnout_rates)){
+#    temp <- validation_by_logreg_state(i, turnout_rates[j])
+#    true_pos_neg_rates_by_turnout[j,1] <- temp$voters[temp$validated=="Yes"]
+#    true_pos_neg_rates_by_turnout[j,2] <- temp$nonvoters[temp$validated=="No"]
+#    true_pos_neg_rates_by_turnout[j,3] <- j
+#    true_pos_neg_rates_by_turnout[j,4] <- i
+#    j = j +1
+# }
+# true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, true_pos_neg_rates_by_turnout)
+# }
 
 ```
 
@@ -1730,7 +1747,8 @@ true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, tr
 # no propensity weight for margin
 vote_choice_logreg_state <- function(location, turnout){
   predictions_all %>% filter(state == location) %>% 
-  top_n(round(nrow(predictions)*turnout,0), wt = Voted) %>% 
+  top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+        wt = Voted) %>% 
   filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
                        "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
                        "I'm Not Sure")) %>% 
@@ -1907,55 +1925,56 @@ ggplot() +
 ```
 
 ```{r, include = FALSE, echo = FALSE, warning = FALSE, message = FALSE}
-# consider turnout rates from 0.01 to 0.99 by 1
-turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
-
-# set up work
-all_states <- unique(pooled$state)
-true_pos_neg_rates_by_turnout_all <- data.frame()
-
-# calculate true positive and negative rates for each level of turnout
-validation_by_logreg_state <- function(location, turnout){
-  willvote <- predictions_all %>% filter(state == location) %>% 
-    top_n(round(nrow(predictions_all)*turnout,0), wt = Voted)
-  wontvote <- predictions_all %>% filter(state == location) %>% 
-    anti_join(willvote, by = "case_id")
-
-  pred_voters <- willvote %>% 
-    count(validated = (validated == 'Voted')) %>% 
-    mutate(percent = round((n/sum(n))*100,2)) %>% 
-    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
-    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
-    select(-n)
-  
-  pred_nonvoters <- wontvote %>% 
-    count(validated = (validated == 'Voted')) %>% 
-    mutate(percent = round((n/sum(n))*100,2)) %>% 
-    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
-    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
-    select(-n)
-  
-  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
-    rename(voters = percent_v, nonvoters = percent_nv)
-}
-
-# loop through each state and calculate true positive/negative rates by turnout
-# not particularly sure this is a good way to do this because there is so little distinction 
-# between propensity scores here (for this set of predictors)
-
-for (i in all_states){
-true_pos_neg_rates_by_turnout <- data.frame()
-j <- 1
-while(j <= length(turnout_rates)){
-   temp <- validation_by_logreg_state(i, turnout_rates[j])
-   true_pos_neg_rates_by_turnout[j,1] <- temp$voters[temp$validated=="Yes"]
-   true_pos_neg_rates_by_turnout[j,2] <- temp$nonvoters[temp$validated=="No"]
-   true_pos_neg_rates_by_turnout[j,3] <- j
-   true_pos_neg_rates_by_turnout[j,4] <- i
-   j = j +1
-}
-true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, true_pos_neg_rates_by_turnout)
-}
+# # consider turnout rates from 0.01 to 0.99 by 1
+# turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
+# 
+# # set up work
+# all_states <- unique(pooled$state)
+# true_pos_neg_rates_by_turnout_all <- data.frame()
+# 
+# # calculate true positive and negative rates for each level of turnout
+# validation_by_logreg_state <- function(location, turnout){
+#   willvote <- predictions_all %>% filter(state == location) %>% 
+#     top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+#         wt = Voted)
+#   wontvote <- predictions_all %>% filter(state == location) %>% 
+#     anti_join(willvote, by = "case_id")
+# 
+#   pred_voters <- willvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   pred_nonvoters <- wontvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+#     rename(voters = percent_v, nonvoters = percent_nv)
+# }
+# 
+# # loop through each state and calculate true positive/negative rates by turnout
+# # not particularly sure this is a good way to do this because there is so little distinction 
+# # between propensity scores here (for this set of predictors)
+# 
+# for (i in all_states){
+# true_pos_neg_rates_by_turnout <- data.frame()
+# j <- 1
+# while(j <= length(turnout_rates)){
+#    temp <- validation_by_logreg_state(i, turnout_rates[j])
+#    true_pos_neg_rates_by_turnout[j,1] <- temp$voters[temp$validated=="Yes"]
+#    true_pos_neg_rates_by_turnout[j,2] <- temp$nonvoters[temp$validated=="No"]
+#    true_pos_neg_rates_by_turnout[j,3] <- j
+#    true_pos_neg_rates_by_turnout[j,4] <- i
+#    j = j +1
+# }
+# true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, true_pos_neg_rates_by_turnout)
+# }
 
 ```
 
@@ -1965,7 +1984,8 @@ true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, tr
 # no propensity weight for margin
 vote_choice_logreg_state <- function(location, turnout){
   predictions_all %>% filter(state == location) %>% 
-  top_n(round(nrow(predictions)*turnout,0), wt = Voted) %>% 
+  top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+        wt = Voted) %>% 
   filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
                        "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
                        "I'm Not Sure")) %>% 

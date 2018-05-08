@@ -1,6 +1,6 @@
 Analysis Part II - State Models
 ================
-April 25, 2018
+May 8, 2018
 
 -   [Introduction](#introduction)
 -   [Vote Intent](#vote-intent)
@@ -115,10 +115,10 @@ Clinton's chances are overestimated by an average of 2.43 points, across all vot
 
 | model                                                        |  mean\_error|       MSE|
 |:-------------------------------------------------------------|------------:|---------:|
-| Already voted + will definitely vote                         |     2.411961|  39.20252|
-| Already voted + will definitely or probably vote             |     2.628627|  46.47919|
-| Already voted + will definitely or probably vote + undecided |     2.392745|  39.87361|
-| All respondents                                              |     2.288039|  49.19410|
+| Already voted + will definitely vote                         |     2.459608|  35.76928|
+| Already voted + will definitely or probably vote             |     2.676274|  45.64579|
+| Already voted + will definitely or probably vote + undecided |     2.440392|  43.04591|
+| All respondents                                              |     2.335686|  53.31500|
 
 Vote Intent + Vote History
 ==========================
@@ -141,10 +141,10 @@ Looks like this overestimates Clinton's chances a bit. The average difference be
 
 | model                                                        |  mean\_error|       MSE|
 |:-------------------------------------------------------------|------------:|---------:|
-| Already voted + will definitely vote                         |     2.812843|  41.86177|
-| Already voted + will definitely or probably vote             |     2.976471|  46.99743|
-| Already voted + will definitely or probably vote + undecided |     3.077549|  44.44023|
-| All respondents                                              |     3.145588|  50.39356|
+| Already voted + will definitely vote                         |     2.860490|  37.52696|
+| Already voted + will definitely or probably vote             |     3.024118|  45.10705|
+| Already voted + will definitely or probably vote + undecided |     3.125196|  45.09828|
+| All respondents                                              |     3.193235|  51.65475|
 
 Perry-Gallup Index
 ==================
@@ -165,11 +165,11 @@ Election Predictions
 
 | model                      |  mean\_error|       MSE|
 |:---------------------------|------------:|---------:|
-| 6s and 5s                  |    -2.349608|  84.97869|
-| 6s, 5s, and 4s             |     1.449804|  44.02442|
-| 6s, 5s, 4s, and 3s         |     2.405490|  48.38613|
-| 6s, 5s, 4s, 3s, and 2s     |     2.397255|  50.76708|
-| 6s, 5s, 4s, 3s, 2s, and 1s |     2.282157|  48.79396|
+| 6s and 5s                  |    -2.301961|  80.68354|
+| 6s, 5s, and 4s             |     1.497451|  42.58601|
+| 6s, 5s, 4s, and 3s         |     2.453137|  47.43655|
+| 6s, 5s, 4s, 3s, and 2s     |     2.444902|  53.54221|
+| 6s, 5s, 4s, 3s, 2s, and 1s |     2.329804|  52.72769|
 
 Logistic Regression
 ===================

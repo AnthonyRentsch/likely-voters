@@ -208,9 +208,9 @@ summary_states$error_high[summary_states$model == "Perry-Gallup index"] <- 1.449
 
 # Logistic regression
 summary_states$error_low[summary_states$model == "Logistic regression" &
-                           summary_states$type == "Perry-Gallup"] <- 2.664
+                           summary_states$type == "Perry-Gallup"] <- 4.327
 summary_states$error_high[summary_states$model == "Logistic regression" &
-                            summary_states$type == "Perry-Gallup"] <- 3.995
+                            summary_states$type == "Perry-Gallup"] <- 6.662
 
 summary_states$error_low[summary_states$model == "Logistic regression" &
                            summary_states$type == "Perry-Gallup (weight)"] <- 3.388904
@@ -218,9 +218,9 @@ summary_states$error_high[summary_states$model == "Logistic regression" &
                               summary_states$type == "Perry-Gallup (weight)"] <- 3.388904
 
 summary_states$error_low[summary_states$model == "Logistic regression" &
-                           summary_states$type == "Perry-Gallup + demographic"] <-  5.119 
+                           summary_states$type == "Perry-Gallup + demographic"] <-  8.712 
 summary_states$error_high[summary_states$model == "Logistic regression" &
-                            summary_states$type == "Perry-Gallup + demographic"] <- 7.430 
+                            summary_states$type == "Perry-Gallup + demographic"] <- 9.856 
 
 summary_states$error_low[summary_states$model == "Logistic regression" &
                            summary_states$type == "Perry-Gallup + demographic (weight)"] <- 5.568316
@@ -228,9 +228,9 @@ summary_states$error_high[summary_states$model == "Logistic regression" &
                             summary_states$type == "Perry-Gallup + demographic (weight)"] <- 5.568316
 
 summary_states$error_low[summary_states$model == "Logistic regression" &
-                           summary_states$type == "Perry-Gallup + demographic + structural"] <- 5.001
+                           summary_states$type == "Perry-Gallup + demographic + structural"] <- 8.159
 summary_states$error_high[summary_states$model == "Logistic regression" &
-                            summary_states$type == "Perry-Gallup + demographic + structural"] <- 7.023
+                            summary_states$type == "Perry-Gallup + demographic + structural"] <- 8.695
 
 summary_states$error_low[summary_states$model == "Logistic regression" &
                            summary_states$type == "Perry-Gallup + demographic + structural (weight)"] <- 7.231257
@@ -239,9 +239,9 @@ summary_states$error_high[summary_states$model == "Logistic regression" &
 
 # random forests
 summary_states$error_low[summary_states$model == "Random forests" &
-                           summary_states$type == " Perry-Gallup"] <- 0.4579
+                           summary_states$type == " Perry-Gallup"] <- 0.843
 summary_states$error_high[summary_states$model == "Random forests" &
-                            summary_states$type == " Perry-Gallup"] <- 1.0400
+                            summary_states$type == " Perry-Gallup"] <- 1.865
 
 summary_states$error_low[summary_states$model == "Random forests" &
                              summary_states$type == " Perry-Gallup (weight)"] <- 2.143218
@@ -249,9 +249,9 @@ summary_states$error_high[summary_states$model == "Random forests" &
                             summary_states$type == " Perry-Gallup (weight)"] <- 2.143218
 
 summary_states$error_low[summary_states$model == "Random forests" &
-                           summary_states$type == " Perry-Gallup + demographic"] <- -12.63
+                           summary_states$type == " Perry-Gallup + demographic"] <- -5.644
 summary_states$error_high[summary_states$model == "Random forests" &
-                              summary_states$type == " Perry-Gallup + demographic"] <- -10.31 
+                              summary_states$type == " Perry-Gallup + demographic"] <- -1.963  
 
 summary_states$error_low[summary_states$model == "Random forests" &
                            summary_states$type == " Perry-Gallup + demographic (weight)"] <- -0.1981547
@@ -259,9 +259,9 @@ summary_states$error_high[summary_states$model == "Random forests" &
                             summary_states$type == " Perry-Gallup + demographic (weight)"] <- -0.1981547
 
 summary_states$error_low[summary_states$model == "Random forests" &
-                           summary_states$type == " Perry-Gallup + demographic + structural"] <- -12.85 
+                           summary_states$type == " Perry-Gallup + demographic + structural"] <- -4.792
 summary_states$error_high[summary_states$model == "Random forests" &
-                              summary_states$type == " Perry-Gallup + demographic + structural"] <- -10.57 
+                              summary_states$type == " Perry-Gallup + demographic + structural"] <- -1.231 
 
 summary_states$error_low[summary_states$model == "Random forests" &
                            summary_states$type == " Perry-Gallup + demographic + structural (weight)"] <- 0.6026296
@@ -290,9 +290,9 @@ fig16 <- ggplot(data = summary_states) +
   scale_colour_manual(values = pal) +
   geom_vline(aes(xintercept = 0), col = "black", lty = 2) +
   labs(title = "", x = "Average error relative to margin among validated voters", y = "") +
-  annotation_custom(baseline_models,xmin=-17.18,xmax=-17.18,ymin=17.75,ymax=17.75) +
-  annotation_custom(log_reg_models,xmin=-19.1,xmax=-19.1,ymin=13.75,ymax=13.75) +
-  annotation_custom(rf_models,xmin=-18.52,xmax=-18.52,ymin=6.75,ymax=6.75) +
+  annotation_custom(baseline_models,xmin=-8.98,xmax=-8.98,ymin=17.75,ymax=17.75) +
+  annotation_custom(log_reg_models,xmin=-10.45,xmax=-10.45,ymin=13.75,ymax=13.75) +
+  annotation_custom(rf_models,xmin=-10.02,xmax=-10.02,ymin=6.75,ymax=6.75) +
   theme(legend.position="none", axis.ticks.y=element_blank())
 
 fig16 <- ggplot_gtable(ggplot_build(fig16))
@@ -496,7 +496,7 @@ fig18 <- ggplot(data = df) +
   geom_rect(aes(xmin = 60, xmax = 70, ymin = 0, ymax = 7), fill = "#F0F0F0") +
   annotate("text", x = 65, y = 6.5, label = "Projected turnout rate", colour = "#535353", fontface = "bold") +
   annotate("text" , x = 65, y = c(6,5,4,3,2,1), 
-           label = c("< 1%", "48.9%", "69.6%", "83.5%", "91.0%", "100%"),
+           label = c("< 1%", "41.8%", "65.0%", "81.5%", "90.1%", "100%"),
            colour = "#535353", fontface = "bold") +
   geom_text(aes(x = Trump, y = model, label = round(Trump, 1)),
             colour = "#ff2700", fontface = "bold", hjust = 1.5) +
