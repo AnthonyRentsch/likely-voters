@@ -55,34 +55,34 @@ summary_national$error_high[summary_national$model == "Perry-Gallup index"] <- 1
 
 # logistic regression
 summary_national$error_low[summary_national$model == "Logistic regression" &
-                         summary_national$type == "Perry-Gallup"] <- 6.68 - validated_margin16
+                         summary_national$type == "Perry-Gallup"] <- 0.57 - validated_margin16
 summary_national$error_high[summary_national$model == "Logistic regression" &
-                             summary_national$type == "Perry-Gallup"] <- 12.15 - validated_margin16
+                             summary_national$type == "Perry-Gallup"] <- 4.53 - validated_margin16
 
 summary_national$error_low[summary_national$model == "Logistic regression" &
-                             summary_national$type == "Perry-Gallup (weight)"] <- 7.7 - validated_margin16
+                             summary_national$type == "Perry-Gallup (weight)"] <- 5.8 - validated_margin16
 summary_national$error_high[summary_national$model == "Logistic regression" &
-                              summary_national$type == "Perry-Gallup (weight)"] <- 7.7 - validated_margin16
+                              summary_national$type == "Perry-Gallup (weight)"] <- 5.80 - validated_margin16
 
 summary_national$error_low[summary_national$model == "Logistic regression" &
-                             summary_national$type == "Perry-Gallup + demographic"] <- 16.17 - validated_margin16
+                             summary_national$type == "Perry-Gallup + demographic"] <- -7.57 - validated_margin16
 summary_national$error_high[summary_national$model == "Logistic regression" &
-                              summary_national$type == "Perry-Gallup + demographic"] <- 17.37 - validated_margin16
+                              summary_national$type == "Perry-Gallup + demographic"] <- -0.78 - validated_margin16
 
 summary_national$error_low[summary_national$model == "Logistic regression" &
-                             summary_national$type == "Perry-Gallup + demographic (weight)"] <- 10.53 - validated_margin16
+                             summary_national$type == "Perry-Gallup + demographic (weight)"] <- 3.17 - validated_margin16
 summary_national$error_high[summary_national$model == "Logistic regression" &
-                              summary_national$type == "Perry-Gallup + demographic (weight)"] <- 10.53 - validated_margin16
+                              summary_national$type == "Perry-Gallup + demographic (weight)"] <- 3.17 - validated_margin16
 
 summary_national$error_low[summary_national$model == "Logistic regression" &
-                             summary_national$type == "Perry-Gallup + demographic + structural"] <- 15.63 - validated_margin16
+                             summary_national$type == "Perry-Gallup + demographic + structural"] <- -7.03 - validated_margin16
 summary_national$error_high[summary_national$model == "Logistic regression" &
-                              summary_national$type == "Perry-Gallup + demographic + structural"] <- 16.29 - validated_margin16
+                              summary_national$type == "Perry-Gallup + demographic + structural"] <- -0.07 - validated_margin16
 
 summary_national$error_low[summary_national$model == "Logistic regression" &
-                             summary_national$type == "Perry-Gallup + demographic + structural (weight)"] <- 11.45 - validated_margin16
+                             summary_national$type == "Perry-Gallup + demographic + structural (weight)"] <- 6.05 - validated_margin16
 summary_national$error_high[summary_national$model == "Logistic regression" &
-                              summary_national$type == "Perry-Gallup + demographic + structural (weight)"] <- 11.45 - validated_margin16
+                              summary_national$type == "Perry-Gallup + demographic + structural (weight)"] <- 6.05 - validated_margin16
 
 # random forests
 summary_national$error_low[summary_national$model == "Random forests" &
@@ -126,6 +126,7 @@ summary_national$label <- factor(summary_national$label, levels = rev(summary_na
                                 # levels = summary_national$label[order(summary_national$error_low)])
 summary_national$type <- factor(summary_national$type, levels = rev(summary_national$type))
 summary_national$color <- summary_national$error_low > 0
+summary_national$color[summary_national$label == "Logistic regression: \nPerry-Gallup" ] <- NA
 
 pal <- c("#FF0000", "#0000FF")
 
@@ -138,18 +139,17 @@ fig15 <- ggplot(data = summary_national) +
   geom_point(aes(x = error_low, y = type, colour = color), size = 2.5) +
   geom_point(aes(x = error_high, y = type, colour = color), size = 2.5) +
   geom_segment(aes(x = error_low, y = type, xend = error_high, yend = type, colour = color), size = 1) +
-  scale_colour_manual(values = pal) +
+  scale_colour_manual(values = pal, na.value = "purple") +
   geom_vline(aes(xintercept = 0), col = "black", lty = 2) +
   labs(title = "", x = "Error relative to margin among validated voters", y = "") +
-  annotation_custom(baseline_models,xmin=-12.8,xmax=-12.8,ymin=17.75,ymax=17.75) +
-  annotation_custom(log_reg_models,xmin=-15,xmax=-15,ymin=13.75,ymax=13.75) +
-  annotation_custom(rf_models,xmin=-14.2,xmax=-14.2,ymin=6.75,ymax=6.75) +
+  annotation_custom(baseline_models,xmin=-13.5,xmax=-13.5,ymin=17.75,ymax=17.75) +
+  annotation_custom(log_reg_models,xmin=-14.9,xmax=-14.9,ymin=13.75,ymax=13.75) +
+  annotation_custom(rf_models,xmin=-14.5,xmax=-14.5,ymin=6.75,ymax=6.75) +
   theme(legend.position="none", axis.ticks.y=element_blank())
 
 fig15 <- ggplot_gtable(ggplot_build(fig15))
 fig15$layout$clip[fig15$layout$name == "panel"] <- "off"
 grid.draw(fig15)
-
 
 
 
@@ -208,34 +208,34 @@ summary_states$error_high[summary_states$model == "Perry-Gallup index"] <- 1.449
 
 # Logistic regression
 summary_states$error_low[summary_states$model == "Logistic regression" &
-                           summary_states$type == "Perry-Gallup"] <- 4.327
+                           summary_states$type == "Perry-Gallup"] <- -0.9348
 summary_states$error_high[summary_states$model == "Logistic regression" &
-                            summary_states$type == "Perry-Gallup"] <- 6.662
+                            summary_states$type == "Perry-Gallup"] <- 1.484
 
 summary_states$error_low[summary_states$model == "Logistic regression" &
-                           summary_states$type == "Perry-Gallup (weight)"] <- 3.388904
+                           summary_states$type == "Perry-Gallup (weight)"] <- 1.482237
 summary_states$error_high[summary_states$model == "Logistic regression" &
-                              summary_states$type == "Perry-Gallup (weight)"] <- 3.388904
+                              summary_states$type == "Perry-Gallup (weight)"] <- 1.482237
 
 summary_states$error_low[summary_states$model == "Logistic regression" &
-                           summary_states$type == "Perry-Gallup + demographic"] <-  8.712 
+                           summary_states$type == "Perry-Gallup + demographic"] <-  -7.307 
 summary_states$error_high[summary_states$model == "Logistic regression" &
-                            summary_states$type == "Perry-Gallup + demographic"] <- 9.856 
+                            summary_states$type == "Perry-Gallup + demographic"] <- -2.666 
 
 summary_states$error_low[summary_states$model == "Logistic regression" &
-                           summary_states$type == "Perry-Gallup + demographic (weight)"] <- 5.568316
+                           summary_states$type == "Perry-Gallup + demographic (weight)"] <- -0.6538409
 summary_states$error_high[summary_states$model == "Logistic regression" &
-                            summary_states$type == "Perry-Gallup + demographic (weight)"] <- 5.568316
+                            summary_states$type == "Perry-Gallup + demographic (weight)"] <- -0.6538409
 
 summary_states$error_low[summary_states$model == "Logistic regression" &
-                           summary_states$type == "Perry-Gallup + demographic + structural"] <- 8.159
+                           summary_states$type == "Perry-Gallup + demographic + structural"] <- -6.489
 summary_states$error_high[summary_states$model == "Logistic regression" &
-                            summary_states$type == "Perry-Gallup + demographic + structural"] <- 8.695
+                            summary_states$type == "Perry-Gallup + demographic + structural"] <- -2.168 
 
 summary_states$error_low[summary_states$model == "Logistic regression" &
-                           summary_states$type == "Perry-Gallup + demographic + structural (weight)"] <- 7.231257
+                           summary_states$type == "Perry-Gallup + demographic + structural (weight)"] <- 1.650081
 summary_states$error_high[summary_states$model == "Logistic regression" &
-                            summary_states$type == "Perry-Gallup + demographic + structural (weight)"] <- 7.231257
+                            summary_states$type == "Perry-Gallup + demographic + structural (weight)"] <- 1.650081
 
 # random forests
 summary_states$error_low[summary_states$model == "Random forests" &
@@ -279,6 +279,7 @@ summary_states$label <- factor(summary_states$label, levels = rev(summary_states
                             #   levels = summary_states$label[order(summary_states$error_low)])
 summary_states$type <- factor(summary_states$type, levels = rev(summary_states$type))
 summary_states$color <- summary_states$error_low > 0
+summary_states$color[summary_states$label == "Logistic regression: \nPerry-Gallup" ] <- NA
 
 pal <- c("#FF0000", "#0000FF")
 
@@ -287,12 +288,12 @@ fig16 <- ggplot(data = summary_states) +
   geom_point(aes(x = error_low, y = type, colour = color), size = 2.5) +
   geom_point(aes(x = error_high, y = type, colour = color), size = 2.5) +
   geom_segment(aes(x = error_low, y = type, xend = error_high, yend = type, colour = color), size = 1) +
-  scale_colour_manual(values = pal) +
+  scale_colour_manual(values = pal, na.value = "purple") +
   geom_vline(aes(xintercept = 0), col = "black", lty = 2) +
   labs(title = "", x = "Average error relative to margin among validated voters", y = "") +
-  annotation_custom(baseline_models,xmin=-8.98,xmax=-8.98,ymin=17.75,ymax=17.75) +
-  annotation_custom(log_reg_models,xmin=-10.45,xmax=-10.45,ymin=13.75,ymax=13.75) +
-  annotation_custom(rf_models,xmin=-10.02,xmax=-10.02,ymin=6.75,ymax=6.75) +
+  annotation_custom(baseline_models,xmin=-9.5,xmax=-9.5,ymin=17.75,ymax=17.75) +
+  annotation_custom(log_reg_models,xmin=-10.5,xmax=-10.5,ymin=13.75,ymax=13.75) +
+  annotation_custom(rf_models,xmin=-10.2,xmax=-10.2,ymin=6.75,ymax=6.75) +
   theme(legend.position="none", axis.ticks.y=element_blank())
 
 fig16 <- ggplot_gtable(ggplot_build(fig16))
@@ -505,7 +506,7 @@ fig18 <- ggplot(data = df) +
   annotate("text", x = 66.4, y = 4.71, label = "53.6% (2012)", colour = "#ED713A", fontface = "bold") +
   annotate("text", x = 66.4, y = 4.41, label = "56.9% (2008)", colour = "#8E3087", fontface = "bold") +
   # set axis text
-  labs(title = "Clinton holds small lead under\nmost likely turnout scenarios",
+  labs(title = "Clinton holds small lead under most likely turnout scenarios",
        x = "Vote share (%)",
        y = "Vote likelihood scores") +
   # Set the entire chart region to a light gray color

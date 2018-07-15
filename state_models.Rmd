@@ -1,6 +1,6 @@
 ---
 title: "Analysis Part II - State Models"
-date: "May 8, 2018"
+date: "July 12, 2018"
 output:
   github_document:
     toc: true
@@ -18,7 +18,7 @@ knitr::read_chunk('load.R')
 
 ```{r, echo = FALSE, include = FALSE}
 # run load.R 
- <<load>> 
+# <<load>> 
 ```
 
 # Introduction
@@ -669,7 +669,7 @@ train <- pooled %>% filter(state == i, year %in% c(2008,2010,2012,2014))
 test <- pooled %>% filter(state == i, year == 2016)
 
 # run unweighted model
-formula <- as.formula(validated ~ vote_history*intent + interest + registration + 
+formula <- as.formula(validated=='Voted' ~ vote_history*intent + interest + registration + 
                         eligible)
 model <- glm(formula, family = binomial(link = "logit"), data = train)
 
@@ -895,7 +895,7 @@ fig10a
 ```
 
 
-## Perry-Gallup index + + all variables potentially related to turnout
+## Perry-Gallup index + all variables potentially related to turnout
 
 This next model considers the Perry-Gallup index variables mentioned in the previous section in addition to a whole slew of demographic variables that literature has suggested may be tied to turnout or to misreporting voting intention. These include:
 
@@ -932,7 +932,7 @@ test <- pooled %>% filter(state == i, year == 2016)
 if (i == "South Dakota") {test$race[test$race == 4] <- 6} 
 
 # run unweighted model
-formula <- as.formula(validated ~ vote_history*intent + interest + registration + 
+formula <- as.formula(validated=='Voted' ~ vote_history*intent + interest + registration + 
                         gender + age + race + education + income_new + 
                         partisan_strength + religiosity + marital_status +
                         residential_mobility)
@@ -1183,13 +1183,13 @@ if (i == "South Dakota") {test$race[test$race == 4] <- 6}
 # run unweighted model
 if(i %in% c('Connecticut','Massachusetts', 'New Hampshire','Maine','Vermont',
             'Rhode Island', 'District of Columbia')) {
-  formula <- as.formula(validated ~ vote_history*intent + interest + registration + 
+  formula <- as.formula(validated=='Voted' ~ vote_history*intent + interest + registration + 
                         gender + age + race + education + income_new + 
                         partisan_strength + religiosity + marital_status +
                         residential_mobility + gdp_growth*approval*polarization)
 }
 else {
-  formula <- as.formula(validated ~ vote_history*intent + interest + registration + 
+  formula <- as.formula(validated=='Voted' ~ vote_history*intent + interest + registration + 
                         gender + age + race + education + income_new + 
                         partisan_strength + religiosity + marital_status +
                         residential_mobility + gdp_growth*approval*incumbent*polarization)
@@ -1407,7 +1407,7 @@ fig10c
 ```
 
 
-# Random Forest
+# Random Forests
 
 ## Perry-Gallup index
 

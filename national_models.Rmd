@@ -1,6 +1,6 @@
 ---
 title: "Analysis Part I - National Models"
-date: "May 8, 2018"
+date: "July 12, 2018"
 output:
   github_document:
     toc: true
@@ -18,7 +18,7 @@ knitr::read_chunk('load.R')
 
 ```{r, echo = FALSE, include = FALSE}
 # run load.R 
- <<load>> 
+# <<load>> 
 ```
 
 # Introduction
@@ -513,7 +513,7 @@ train <- pooled %>% filter(year %in% c(2008,2010,2012,2014))
 test <- pooled %>% filter(year == 2016)
 
 # run unweighted model
-formula <- as.formula(validated ~ vote_history*intent + interest + 
+formula <- as.formula(validated=='Voted' ~ vote_history*intent + interest + 
                         registration + eligible)
 model <- glm(formula, family = binomial(link = "logit"), data = train)
 
@@ -621,10 +621,13 @@ vote_choice_logreg <- function(turnout){
 margin_by_turnout <- data.frame()
 i <- 1
 while(i <= length(turnout_rates)){
-   temp <- vote_choice_logreg(turnout_rates[i])
+  temp <- vote_choice_logreg(turnout_rates[i])
+  if (nrow(temp)==0) i = i + 1
+  else {
    margin_by_turnout[i,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
    margin_by_turnout[i,2] <- i
    i = i +1
+  }
 }
 
 # margin weighted by propensity score
@@ -644,9 +647,12 @@ weighted_margin_by_turnout <- data.frame()
 i <- 1
 while(i <= length(turnout_rates)){
    temp <- vote_choice_logreg_weighted(turnout_rates[i])
+   if (nrow(temp)==0) i = i +1
+   else{
    weighted_margin_by_turnout[i,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
    weighted_margin_by_turnout[i,2] <- i
    i = i +1
+   }
 }
 
 # visualize
@@ -696,7 +702,7 @@ train <- pooled %>% filter(year %in% c(2008,2010,2012,2014))
 test <- pooled %>% filter(year == 2016)
 
 # run unweighted model
-formula <- as.formula(validated ~ vote_history*intent + interest + registration + 
+formula <- as.formula(validated=='Voted' ~ vote_history*intent + interest + registration + 
                         gender + age + race + education + income_new + 
                         partisan_strength + religiosity + marital_status +
                         residential_mobility)
@@ -873,7 +879,7 @@ train <- pooled %>% filter(year %in% c(2008,2010,2012,2014))
 test <- pooled %>% filter(year == 2016)
 
 # run unweighted model
-formula <- as.formula(validated ~ vote_history*intent + interest + registration + 
+formula <- as.formula(validated=='Voted' ~ vote_history*intent + interest + registration + 
                         gender + age + race + education + income_new + 
                         partisan_strength + religiosity + marital_status +
                         residential_mobility + gdp_growth*approval*incumbent*polarization)
