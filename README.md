@@ -25,4 +25,4 @@ This project is supported by the Society for Political Methodology's Advanced Em
 
 # Folders
 
-The **post-thesis** contains scripts used to do some of the further analysis beyond my initial undergraduate thesis project.
+The **post-thesis** folder contains scripts used to do some of the further analysis beyond my initial undergraduate thesis project.
