@@ -1,6 +1,6 @@
 Analysis Part II - State Models
 ================
-May 8, 2018
+July 21, 2018
 
 -   [Introduction](#introduction)
 -   [Vote Intent](#vote-intent)
@@ -14,12 +14,12 @@ May 8, 2018
     -   [Election Predictions](#election-predictions-2)
 -   [Logistic Regression](#logistic-regression)
     -   [Perry-Gallup index](#perry-gallup-index-1)
-    -   [Perry-Gallup index + + all variables potentially related to turnout](#perry-gallup-index-all-variables-potentially-related-to-turnout)
-    -   [Perry-Gallup index + all variables potentially related to turnout + structural election variables](#perry-gallup-index-all-variables-potentially-related-to-turnout-structural-election-variables)
--   [Random Forest](#random-forest)
+    -   [Perry-Gallup index + all variables potentially related to turnout](#perry-gallup-index-all-variables-potentially-related-to-turnout)
+    -   [Perry-Gallup index + demographics+ structural election variables](#perry-gallup-index-demographics-structural-election-variables)
+-   [Random Forests](#random-forests)
     -   [Perry-Gallup index](#perry-gallup-index-2)
     -   [Perry-Gallup index + all variables potentially related to turnout](#perry-gallup-index-all-variables-potentially-related-to-turnout-1)
-    -   [Perry-Gallup index + all variables potentially related to turnout + structural election variables](#perry-gallup-index-all-variables-potentially-related-to-turnout-structural-election-variables-1)
+    -   [Perry-Gallup index + demographics+ structural election variables](#perry-gallup-index-demographics-structural-election-variables-1)
 
 Introduction
 ============
@@ -31,12 +31,12 @@ This document will follow a similar format as `national_models` (view that [here
 -   Perry-Gallup index
 -   Logistic regression
     -   Perry-Gallup
-    -   Perry-Gallup + all variables potentially related to turnout
-    -   Perry-Gallup + all variables potentially related to turnout + structural election variables
+    -   Perry-Gallup + demographics
+    -   Perry-Gallup + demographics+ structural election variables
 -   Random forests
     -   Perry-Gallup
-    -   Perry-Gallup + all variables potentially related to turnout
-    -   Perry-Gallup + all variables potentially related to turnout + structural election variables
+    -   Perry-Gallup + demographics
+    -   Perry-Gallup + demographics+ structural election variables
 
 In each section I will create a model and then evaluate how well it predicts voting behavior on an individual-level on a state-by-state basis. At the end, I will use these models to make election predictions for each state. The visualizations I make in this document will likely vary from those in `national_models` to account for the fact that I have to consider 51 instances of each model (one for each state and D.C.) and not just one national model.
 
@@ -189,8 +189,8 @@ I'll first visualize the distribution of vote propensity scores for 9 random sta
 
 ![](state_models_files/figure-markdown_github/unnamed-chunk-19-1.png)
 
-Perry-Gallup index + + all variables potentially related to turnout
--------------------------------------------------------------------
+Perry-Gallup index + all variables potentially related to turnout
+-----------------------------------------------------------------
 
 This next model considers the Perry-Gallup index variables mentioned in the previous section in addition to a whole slew of demographic variables that literature has suggested may be tied to turnout or to misreporting voting intention. These include:
 
@@ -221,8 +221,8 @@ I'll first visualize the distribution of vote propensity scores for 9 random sta
 
 ![](state_models_files/figure-markdown_github/unnamed-chunk-24-1.png)
 
-Perry-Gallup index + all variables potentially related to turnout + structural election variables
--------------------------------------------------------------------------------------------------
+Perry-Gallup index + demographics+ structural election variables
+----------------------------------------------------------------
 
 In addtion to the variables I included in the last mode, I now include structural election variables. I use a reformulation of Abramowitz's Time-for-Change model. The model predicts the vote share for the candidate of the incumbent's party based on
 
@@ -248,8 +248,8 @@ I'll first visualize the distribution of vote propensity scores for 9 random sta
 
 ![](state_models_files/figure-markdown_github/unnamed-chunk-29-1.png)
 
-Random Forest
-=============
+Random Forests
+==============
 
 Perry-Gallup index
 ------------------
@@ -277,8 +277,8 @@ I'll first visualize the distribution of vote propensity scores for 9 random sta
 
 ![](state_models_files/figure-markdown_github/unnamed-chunk-39-1.png)
 
-Perry-Gallup index + all variables potentially related to turnout + structural election variables
--------------------------------------------------------------------------------------------------
+Perry-Gallup index + demographics+ structural election variables
+----------------------------------------------------------------
 
 I'll first visualize the distribution of vote propensity scores for 9 random states using this model.
 

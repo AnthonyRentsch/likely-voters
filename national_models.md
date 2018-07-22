@@ -1,6 +1,6 @@
 Analysis Part I - National Models
 ================
-May 8, 2018
+July 21, 2018
 
 -   [Introduction](#introduction)
 -   [Vote Intent](#vote-intent)
@@ -14,12 +14,12 @@ May 8, 2018
     -   [Election predictions](#election-predictions-2)
 -   [Logistic Regression](#logistic-regression)
     -   [Perry-Gallup index](#perry-gallup-index-1)
-    -   [Perry-Gallup index + all variables potentially related to turnout](#perry-gallup-index-all-variables-potentially-related-to-turnout)
-    -   [Perry-Gallup index + all variables potentially related to turnout + structural election variables](#perry-gallup-index-all-variables-potentially-related-to-turnout-structural-election-variables)
+    -   [Perry-Gallup index + demographics](#perry-gallup-index-demographics)
+    -   [Perry-Gallup index + demographics + structural election variables](#perry-gallup-index-demographics-structural-election-variables)
 -   [Random Forests](#random-forests)
     -   [Perry-Gallup index](#perry-gallup-index-2)
-    -   [Perry-Gallup index + all variables potentially related to turnout](#perry-gallup-index-all-variables-potentially-related-to-turnout-1)
-    -   [Perry-Gallup index + all variables potentially related to turnout + structural election variables](#perry-gallup-index-all-variables-potentially-related-to-turnout-structural-election-variables-1)
+    -   [Perry-Gallup index + demographics](#perry-gallup-index-demographics-1)
+    -   [Perry-Gallup index + demographics + structural election variables](#perry-gallup-index-demographics-structural-election-variables-1)
 
 Introduction
 ============
@@ -31,12 +31,12 @@ In this document, I will define and create the cutoff models that I will use for
 -   Perry-Gallup index
 -   Logistic regression
     -   Perry-Gallup
-    -   Perry-Gallup + all variables potentially related to turnout
-    -   Perry-Gallup + all variables potentially related to turnout + structural election variables
+    -   Perry-Gallup + demographics
+    -   Perry-Gallup + demographics + structural election variables
 -   Random forests
     -   Perry-Gallup
-    -   Perry-Gallup + all variables potentially related to turnout
-    -   Perry-Gallup + all variables potentially related to turnout + structural election variables
+    -   Perry-Gallup + demographics
+    -   Perry-Gallup + demographics + structural election variables
 
 In each section I will create a model and then evaluate how well it predicts voting behavior on an individual-level. At the end, I will use these models to make election predictions.
 
@@ -152,8 +152,8 @@ Logistic Regression
 For this section I will begin using the cumulative CCES file. I'll consider three sets of variables:
 
 -   Perry-Gallup index
--   Perry-Gallup index + all variables potentially related to turnout
--   Perry-Gallup index + all variables potentially related to turnout + structural election variables
+-   Perry-Gallup index + demographics
+-   Perry-Gallup index + demographics + structural election variables
 
 Note that when I just consider the Perry-Gallup index I do make a similar adjustment for age and registration. For age, I define a variable `eligible` that is coded 1 if a respondent was old enough to vote in the previous presidential election and coded 0 if a respondent was not old enough to vote in the previous election. For registration, I recode the variable to be 1 if the respondent reported that they were registered to vote and 0 if they reported that they were not registered or if they did not know.
 
@@ -172,8 +172,8 @@ Note that I include two calculations here: in one, I consider the margin of vict
 
 ![](national_models_files/figure-markdown_github/unnamed-chunk-16-1.png)
 
-Perry-Gallup index + all variables potentially related to turnout
------------------------------------------------------------------
+Perry-Gallup index + demographics
+---------------------------------
 
 This next model considers the Perry-Gallup index variables mentioned in the previous section in addition to a whole slew of demographic variables that literature has suggested may be tied to turnout or to misreporting voting intention. These include:
 
@@ -202,8 +202,8 @@ The racial composition of district and political interest/activism items are not
 
 ![](national_models_files/figure-markdown_github/unnamed-chunk-20-1.png)
 
-Perry-Gallup index + all variables potentially related to turnout + structural election variables
--------------------------------------------------------------------------------------------------
+Perry-Gallup index + demographics + structural election variables
+-----------------------------------------------------------------
 
 In addtion to the variables I included in the last mode, I now include structural election variables. I use a reformulation of Abramowitz's Time-for-Change model. The model predicts the vote share for the candidate of the incumbent's party based on
 
@@ -233,8 +233,8 @@ Random Forests
 For this section I will proceed as I did in the last section, except now I use random forest models instead of logistic regression models. Again, the layout will be:
 
 -   Perry-Gallup index
--   Perry-Gallup index + all variables potentially related to turnout
--   Perry-Gallup index + all variables potentially related to turnout + structural election variables
+-   Perry-Gallup index + demographics
+-   Perry-Gallup index + demographics + structural election variables
 
 Perry-Gallup index
 ------------------
@@ -249,8 +249,8 @@ Perry-Gallup index
 
 ![](national_models_files/figure-markdown_github/unnamed-chunk-28-1.png)
 
-Perry-Gallup index + all variables potentially related to turnout
------------------------------------------------------------------
+Perry-Gallup index + demographics
+---------------------------------
 
 This next model considers the Perry-Gallup index variables mentioned in the previous section in addition to a whole slew of demographic variables that literature has suggested may be tied to turnout or to misreporting voting intention. These include:
 
@@ -279,8 +279,8 @@ The racial composition of district and political interest/activism items are not
 
 ![](national_models_files/figure-markdown_github/unnamed-chunk-32-1.png)
 
-Perry-Gallup index + all variables potentially related to turnout + structural election variables
--------------------------------------------------------------------------------------------------
+Perry-Gallup index + demographics + structural election variables
+-----------------------------------------------------------------
 
 In addtion to the variables I included in the last mode, I now include structural election variables. I use a reformulation of Abramowitz's Time-for-Change model. The model predicts the vote share for the candidate of the incumbent's party based on
 

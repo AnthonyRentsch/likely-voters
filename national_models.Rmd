@@ -1,6 +1,6 @@
 ---
 title: "Analysis Part I - National Models"
-date: "July 12, 2018"
+date: "July 21, 2018"
 output:
   github_document:
     toc: true
@@ -18,7 +18,7 @@ knitr::read_chunk('load.R')
 
 ```{r, echo = FALSE, include = FALSE}
 # run load.R 
-# <<load>> 
+ <<load>> 
 ```
 
 # Introduction
@@ -30,12 +30,12 @@ In this document, I will define and create the cutoff models that I will use for
 * Perry-Gallup index
 * Logistic regression
     + Perry-Gallup
-    + Perry-Gallup + all variables potentially related to turnout 
-    + Perry-Gallup + all variables potentially related to turnout + structural election variables
+    + Perry-Gallup + demographics
+    + Perry-Gallup + demographics + structural election variables
 * Random forests
     + Perry-Gallup
-    + Perry-Gallup + all variables potentially related to turnout 
-    + Perry-Gallup + all variables potentially related to turnout + structural election variables
+    + Perry-Gallup + demographics
+    + Perry-Gallup + demographics + structural election variables
   
 In each section I will create a model and then evaluate how well it predicts voting behavior on an individual-level. At the end, I will use these models to make election predictions.
 
@@ -500,8 +500,8 @@ fig5
 For this section I will begin using the cumulative CCES file. I'll consider three sets of variables:
 
 * Perry-Gallup index
-* Perry-Gallup index + all variables potentially related to turnout
-* Perry-Gallup index + all variables potentially related to turnout + structural election variables
+* Perry-Gallup index + demographics
+* Perry-Gallup index + demographics + structural election variables
 
 Note that when I just consider the Perry-Gallup index I do make a similar adjustment for age and registration. For age, I define a variable `eligible` that is coded 1 if a respondent was old enough to vote in the previous presidential election and coded 0 if a respondent was not old enough to vote in the previous election. For registration, I recode the variable to be 1 if the respondent reported that they were registered to vote and 0 if they reported that they were not registered or if they did not know.
 
@@ -677,7 +677,7 @@ fig8a
 ```
 
 
-## Perry-Gallup index + all variables potentially related to turnout
+## Perry-Gallup index + demographics
 
 This next model considers the Perry-Gallup index variables mentioned in the previous section in addition to a whole slew of demographic variables that literature has suggested may be tied to turnout or to misreporting voting intention. These include:
 
@@ -781,7 +781,7 @@ fig7b <- true_pos_neg_rates_by_turnout %>%
   geom_line(aes(x = turnout_rates[i]*100, y = true_positive, lty = "True positive")) +
   geom_line(aes(x = turnout_rates[i]*100, y = true_negative, lty = "True negative")) +
   #geom_vline(xintercept = 60.2, lty = 4) +
-  labs(title = "b. Perry-Gallup index + all variables potentially related to turnout",
+  labs(title = "b. Perry-Gallup index + demographics",
        x = "Turnout rate (%)",
        y = "",
        lty = "Type") +
@@ -851,7 +851,7 @@ fig8b <- ggplot() +
                 #label = "weighted margin", vjust = -1)) +
   geom_hline(yintercept = validated_margin16, lty = 2, col = "red") +
   #geom_text(aes(89.5, validated_margin16, label = "validated voter margin", vjust = -1)) +
-  labs(title = "b. Perry-Gallup index + all variables potentially related to turnout",
+  labs(title = "b. Perry-Gallup index + demographics",
        x = "Turnout (%)",
        y = "Clinton's predicted margin of victory") + 
   theme(plot.title = element_text(hjust = 0.5))
@@ -859,7 +859,7 @@ fig8b
 ```
 
 
-## Perry-Gallup index + all variables potentially related to turnout + structural election variables
+## Perry-Gallup index + demographics + structural election variables
 
 In addtion to the variables I included in the last mode, I now include structural election variables. I use a reformulation of Abramowitz's Time-for-Change model. The model predicts the vote share for the candidate of the incumbent's party based on 
 
@@ -958,7 +958,7 @@ fig7c <- true_pos_neg_rates_by_turnout %>%
   geom_line(aes(x = turnout_rates[i]*100, y = true_positive, lty = "True positive")) +
   geom_line(aes(x = turnout_rates[i]*100, y = true_negative, lty = "True negative")) +
   #geom_vline(xintercept = 60.2, lty = 4) +
-  labs(title = "c. Perry-Gallup index + all variables potentially related to turnout \n + structural election variables",
+  labs(title = "c. Perry-Gallup index + demographics \n + structural election variables",
        x = "Turnout rate (%)",
        y = "",
        lty = "Type") +
@@ -1028,7 +1028,7 @@ fig8c <- ggplot() +
                 #label = "weighted margin", vjust = -1)) +
   geom_hline(yintercept = validated_margin16, lty = 2, col = "red") +
   #geom_text(aes(89.5, validated_margin16, label = "validated voter margin", vjust = -1)) +
-  labs(title = "c. Perry-Gallup index + all variables potentially related to turnout \n + structural election variables",
+  labs(title = "c. Perry-Gallup index + demographics \n + structural election variables",
        x = "Turnout (%)",
        y = "Clinton's predicted margin of victory") +
   theme(plot.title = element_text(hjust = 0.5))
@@ -1041,8 +1041,8 @@ fig8c
 For this section I will proceed as I did in the last section, except now I use random forest models instead of logistic regression models. Again, the layout will be:
 
 * Perry-Gallup index
-* Perry-Gallup index + all variables potentially related to turnout
-* Perry-Gallup index + all variables potentially related to turnout + structural election variables
+* Perry-Gallup index + demographics
+* Perry-Gallup index + demographics + structural election variables
 
 
 ## Perry-Gallup index
@@ -1208,7 +1208,7 @@ fig12a <- ggplot() +
 fig12a
 ```
 
-## Perry-Gallup index + all variables potentially related to turnout
+## Perry-Gallup index + demographics
 
 This next model considers the Perry-Gallup index variables mentioned in the previous section in addition to a whole slew of demographic variables that literature has suggested may be tied to turnout or to misreporting voting intention. These include:
 
@@ -1302,7 +1302,7 @@ fig11b <- true_pos_neg_rates_by_turnout %>%
   geom_line(aes(x = turnout_rates[i]*100, y = true_positive, lty = "True positive")) +
   geom_line(aes(x = turnout_rates[i]*100, y = true_negative, lty = "True negative")) +
   #geom_vline(xintercept = 60.2, lty = 4) +
-  labs(title = "b. Perry-Gallup index + all variables potentially related to turnout",
+  labs(title = "b. Perry-Gallup index + demographics",
        x = "Turnout rate (%)",
        y = "",
        lty = "Type") +
@@ -1372,7 +1372,7 @@ fig12b <- ggplot() +
                # label = "weighted margin", vjust = 2)) +
   geom_hline(yintercept = validated_margin16, lty = 2, col = "red") +
   #geom_text(aes(89.5, validated_margin16, label = "validated voter margin", vjust = -1)) +
-  labs(title = "b. Perry-Gallup index + all variables potentially related to turnout",
+  labs(title = "b. Perry-Gallup index + demographics",
        x = "Turnout (%)",
        y = "Clinton's predicted margin of victory") +
   theme(plot.title = element_text(hjust = 0.5))
@@ -1380,7 +1380,7 @@ fig12b
 ```
 
 
-## Perry-Gallup index + all variables potentially related to turnout + structural election variables
+## Perry-Gallup index + demographics + structural election variables
 
 In addtion to the variables I included in the last mode, I now include structural election variables. I use a reformulation of Abramowitz's Time-for-Change model. The model predicts the vote share for the candidate of the incumbent's party based on 
 
@@ -1470,7 +1470,7 @@ fig11c <- true_pos_neg_rates_by_turnout %>%
   geom_line(aes(x = turnout_rates[i]*100, y = true_positive, lty = "True positive")) +
   geom_line(aes(x = turnout_rates[i]*100, y = true_negative, lty = "True negative")) +
   #geom_vline(xintercept = 60.2, lty = 4) +
-  labs(title = "c. Perry-Gallup index + all variables potentially related to turnout \n + structural election variables",
+  labs(title = "c. Perry-Gallup index + demographics \n + structural election variables",
        x = "Turnout rate (%)",
        y = "",
        lty = "Type") +
@@ -1540,7 +1540,7 @@ fig12c <- ggplot() +
               #  label = "weighted margin", vjust = 3.5)) +
   geom_hline(yintercept = validated_margin16, lty = 2, col = "red") +
   #geom_text(aes(91, validated_margin16, label = "validated voter margin", vjust = -2.5)) +
-  labs(title = "c. Perry-Gallup index + all variables potentially related to turnout \n + structural election variables",
+  labs(title = "c. Perry-Gallup index + demographics \n + structural election variables",
        x = "Turnout (%)",
        y = "Clinton's predicted margin of victory") +
   theme(plot.title = element_text(hjust = 0.5))

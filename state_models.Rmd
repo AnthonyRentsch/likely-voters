@@ -1,6 +1,6 @@
 ---
 title: "Analysis Part II - State Models"
-date: "July 12, 2018"
+date: "July 21, 2018"
 output:
   github_document:
     toc: true
@@ -18,7 +18,7 @@ knitr::read_chunk('load.R')
 
 ```{r, echo = FALSE, include = FALSE}
 # run load.R 
-# <<load>> 
+ <<load>> 
 ```
 
 # Introduction
@@ -30,12 +30,12 @@ This document will follow a similar format as `national_models` (view that [here
 * Perry-Gallup index
 * Logistic regression
     + Perry-Gallup
-    + Perry-Gallup + all variables potentially related to turnout 
-    + Perry-Gallup + all variables potentially related to turnout + structural election variables
+    + Perry-Gallup + demographics
+    + Perry-Gallup + demographics+ structural election variables
 * Random forests
     + Perry-Gallup
-    + Perry-Gallup + all variables potentially related to turnout 
-    + Perry-Gallup + all variables potentially related to turnout + structural election variables
+    + Perry-Gallup + demographics
+    + Perry-Gallup + demographics+ structural election variables
   
 In each section I will create a model and then evaluate how well it predicts voting behavior on an individual-level on a state-by-state basis. At the end, I will use these models to make election predictions for each state. The visualizations I make in this document will likely vary from those in `national_models` to account for the fact that I have to consider 51 instances of each model (one for each state and D.C.) and not just one national model.
 
@@ -1149,7 +1149,7 @@ fig10b <- margin_by_turnout_all %>% group_by(state) %>% mutate(weighted = mean(m
 fig10b
 ```
 
-## Perry-Gallup index + all variables potentially related to turnout + structural election variables
+## Perry-Gallup index + demographics+ structural election variables
 
 In addtion to the variables I included in the last mode, I now include structural election variables. I use a reformulation of Abramowitz's Time-for-Change model. The model predicts the vote share for the candidate of the incumbent's party based on 
 
@@ -1385,7 +1385,7 @@ fig9c <- ggplot() +
   geom_line(data = mean_errors, 
              aes(x = turnout_rates[i]*100, y = avg_error), colour = "blue", size = 1) +
   geom_hline(yintercept = 0, lty = 2, col = "black") +
-  labs(title = "c. Perry-Gallup index + all variables potentially related to turnout \n + structural election variables",
+  labs(title = "c. Perry-Gallup index + demographics\n + structural election variables",
        x = "Turnout (%)",
        y = "Error between predicted and actual margin") +
   coord_cartesian(xlim = c(30, 100), ylim = c(-50,50)) +
@@ -1400,7 +1400,7 @@ fig10c <- margin_by_turnout_all %>% group_by(state) %>% mutate(weighted = mean(m
   ggplot() + 
   geom_point(aes(x = weighted, y = validated), alpha = 0.35) + 
   geom_abline(intercept = 0, slope = 1, lty = 2) +
-  labs(title = "c. Perry-Gallup index + all variables potentially related to turnout \n + structural election variables",
+  labs(title = "c. Perry-Gallup index + demographics\n + structural election variables",
        x = "Predicted margin of victory for Clinton", y = "Validated margin of victory for Clinton") +
   theme(plot.title = element_text(hjust = 0.5))
 fig10c
@@ -1879,7 +1879,7 @@ fig14b
 ```
 
 
-## Perry-Gallup index + all variables potentially related to turnout + structural election variables
+## Perry-Gallup index + demographics+ structural election variables
 
 ```{r, echo = FALSE, warning = FALSE, message = FALSE}
 # set up
@@ -2094,7 +2094,7 @@ fig13c <- ggplot() +
   geom_line(data = mean_errors, 
              aes(x = turnout_rates[i]*100, y = avg_error), colour = "blue", size = 1) +
   geom_hline(yintercept = 0, lty = 2, col = "black") +
-  labs(title = "c. Perry-Gallup index + all variables potentially related to turnout \n + structural election variables",
+  labs(title = "c. Perry-Gallup index + demographics\n + structural election variables",
        x = "Turnout (%)",
        y = "Error between predicted and actual margin") +
   coord_cartesian(xlim = c(30, 100), ylim = c(-50,50)) +
@@ -2109,7 +2109,7 @@ fig14c <- margin_by_turnout_all %>% group_by(state) %>% mutate(weighted = mean(m
   ggplot() + 
   geom_point(aes(x = weighted, y = validated), alpha = 0.35) + 
   geom_abline(intercept = 0, slope = 1, lty = 2) +
-  labs(title = "c. Perry-Gallup index + all variables potentially related to turnout \n + structural election variables",
+  labs(title = "c. Perry-Gallup index + demographics\n + structural election variables",
        x = "Predicted margin of victory for Clinton", y = "Validated margin of victory for Clinton") +
   theme(plot.title = element_text(hjust = 0.5))
 fig14c

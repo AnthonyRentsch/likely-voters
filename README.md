@@ -21,6 +21,8 @@ This project is supported by the Society for Political Methodology's Advanced Em
 
 `summary_graphics.R` - Script where I create four summary graphics for results/discussion section. Two compare results to all my modeling approaches and two act as mock-ups for how journalists or pollsters could use my work when reporting on polls.
 
-`turnout-validation.R` - Script where I create turnout validation plots.
-
 `analysis_test.Rmd` - Test markdown file for cutoff likely voter models. This file only uses 2016 data throughout and is meant to be a draft of my analysis.
+
+# Folders
+
+The **post-thesis** contains scripts used to do some of the further analysis beyond my initial undergraduate thesis project.

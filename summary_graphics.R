@@ -380,8 +380,11 @@ margin_by_turnout$moe_low <- margin_by_turnout$margin - margin_by_turnout$moe
 pal <- c("#ff2700", "#008fd5")
 
 fig17 <- ggplot() +
-  # bold 0 line
-  geom_hline(yintercept=0,size=1.2,colour="#535353") +
+  # bold line at vote prop weighted prediction
+  geom_hline(yintercept=weighted_margin_by_turnout$margin[weighted_margin_by_turnout$i==100],
+             size=1.2,colour="#535353") +
+  annotate("text",x=92,y=-1.4,label = "Vote propensity\nweighted prediction",
+           fontface = "bold") +
   # 40 and 60 lines
   geom_vline(xintercept = 40, col = "#535353", size = 1, lty = 2) +
   geom_vline(xintercept = 60, col = "#535353", size = 1, lty = 2) +
@@ -444,7 +447,8 @@ fig17 <- ggplot() +
   theme(axis.title.y=element_text(size=11,colour="#535353",face="bold",vjust=1.5)) +
   theme(axis.title.x=element_text(size=11,colour="#535353",face="bold",vjust=-.5)) +
   # Plot margins and finally line annotations
-  theme(plot.margin = unit(c(1, 1, .5, .7), "cm"))
+  theme(plot.margin = unit(c(1, 1, .5, .7), "cm"),
+        plot.title = element_text(hjust = 0.5))
 fig17
 
 
