@@ -469,6 +469,10 @@ validated_margin16_state <- validated_margin16_state %>%
   filter(choice == "Hillary Clinton (Democrat)") %>%
   select(state, margin)
 
+# remove data from VA '08 and '10 because of no vote history
+va_08_10 <- pooled %>% filter(state=='Virginia', year %in% c(2008,2010))
+pooled <- anti_join(pooled, va_08_10, by='case_id')
+
 ############
 
 #upload Catalist turnout data
