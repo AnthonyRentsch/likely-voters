@@ -25,4 +25,9 @@ This project is supported by the Society for Political Methodology's Advanced Em
 
 # Folders
 
-The **post-thesis** folder contains scripts used to do some of the further analysis beyond my initial undergraduate thesis project.
+**post-thesis** - contains scripts used to do some of the further analysis beyond my initial undergraduate thesis project
+
+**cces2018** - contains a script to produce vote propensity scores for 2018 CCES and a csv of respondent ID and predictions (note: this was published before the 2018 midterm election)
+
+**writing_presentations** - contains presentations of various versions of this project
+
