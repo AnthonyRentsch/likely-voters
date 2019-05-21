@@ -16,17 +16,20 @@ This repository is a collection of all of the work that has been done for this p
 This project has been supported by SPM's [Advanced Empirical Research on Politics for Undergraduates Program](https://www.cambridge.org/core/membership/spm/about-us/awards/advanced-empirical-research-on-politics-for-undergraduates-program-aeropup) (AERoPUP). I've also received travel funding from AAPOR via their [Student Travel Award](https://www.aapor.org/Conference-Events/Awards/Award-Winners.aspx).
 
 
+# Folders
+
+**thesis** - original scripts, mostly markdown files, used for my thesis project
+
+**journal** - scripts used for journal article
+
+**cces2018** - script to produce vote propensity scores for 2018 CCES and a csv of respondent ID and predictions (note: this was published *before* the 2018 midterm election)
+
+**writing_presentations** - presentations of various versions of this project
+
+**misc** - various exploratory analyses
+
+
 # Data
 
 * Cooperative Congressional Election Study (CCES) surveys from 2008, 2012, and 2016, as well as the cumulative file. Find that data [here](https://cces.gov.harvard.edu/).
 * Catalist turnout data (Brian Schaffner has access to an academic subscription to Catalist, which he has generously allowed me use for this project). This was used only for exploratory analyses.
-
-
-# Folders
-
-**post-thesis** - contains scripts used to do some of the further analysis beyond my initial undergraduate thesis project
-
-**cces2018** - contains a script to produce vote propensity scores for 2018 CCES and a csv of respondent ID and predictions (note: this was published before the 2018 midterm election)
-
-**writing_presentations** - contains presentations of various versions of this project
-
