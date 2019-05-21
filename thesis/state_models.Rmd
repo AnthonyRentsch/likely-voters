@@ -1,0 +1,2117 @@
+---
+title: "Analysis Part II - State Models"
+date: "July 21, 2018"
+output:
+  github_document:
+    toc: true
+    #toc_float: true
+    toc_depth: 2
+    #collapsed: false
+    #smooth_scroll: false
+    df_print: kable
+---
+
+```{r setup, echo = FALSE, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::read_chunk('load.R')
+```
+
+```{r, echo = FALSE, include = FALSE}
+# run load.R 
+ <<load>> 
+```
+
+# Introduction
+
+This document will follow a similar format as `national_models` (view that [here](https://github.com/AnthonyRentsch/thesis_LikelyVoters/blob/master/national_models.md)). Again, the flow will be as follows:
+
+* Vote intent
+* Vote intent + vote history
+* Perry-Gallup index
+* Logistic regression
+    + Perry-Gallup
+    + Perry-Gallup + demographics
+    + Perry-Gallup + demographics+ structural election variables
+* Random forests
+    + Perry-Gallup
+    + Perry-Gallup + demographics
+    + Perry-Gallup + demographics+ structural election variables
+  
+In each section I will create a model and then evaluate how well it predicts voting behavior on an individual-level on a state-by-state basis. At the end, I will use these models to make election predictions for each state. The visualizations I make in this document will likely vary from those in `national_models` to account for the fact that I have to consider 51 instances of each model (one for each state and D.C.) and not just one national model.
+
+Due to smaller sample sizes in some states in the 2016 CCES, I may choose to drop a handful of states or so from my analysis, which I will make clear if I choose to do so.
+
+```{r, echo = FALSE, warning = FALSE}
+pooled %>% count(state)
+```
+
+
+# Vote Intent
+
+## Individual-level turnout
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# create function
+validation_by_intent_state <- function(location, intention){
+  willvote <- pooled %>% 
+    filter(state == location, intent %in% intention)
+  wontvote <- pooled %>% 
+    filter(state == location) %>% 
+    anti_join(willvote, by = 'case_id')
+
+  pred_voters <- willvote %>% 
+    count(validated = (validated == 'Voted')) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  pred_nonvoters <- wontvote %>% 
+    count(validated = (validated == 'Voted')) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+    rename(voters = percent_v, nonvoters = percent_nv)
+}
+ # other set up
+all_states <- unique(pooled$state)
+
+df <- data.frame(model = vector(length = 0),
+                 states = vector(length = 0),
+                 true_positive = vector(length = 0),
+                 #false_positive = vector(length = 0),
+                 #false_negative = vector(length = 0),
+                 true_negative = vector(length = 0))
+
+
+for (i in all_states){
+# those who say they already voted
+mod1 <- validation_by_intent_state(i, 3)
+# those who say they will definitely vote or have voted already
+mod2 <- validation_by_intent_state(i, c(1,3))
+# those who say they will definitely vote, have voted already, or will probably vote
+mod3 <- validation_by_intent_state(i, c(1,2,3))
+# those who say they will definitely vote, have voted already, will probably vote, or who are undecided
+mod4 <- validation_by_intent_state(i, c(1,2,3,5))
+# all respondents in the sample
+mod5 <- validation_by_intent_state(i, c(1,2,3,4,5))
+
+mods <- list(mod1, mod2, mod3, mod4, mod5)
+
+temp <- data.frame(model = c("Already voted", "Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
+                 state = i,
+                 true_positive = vector(length = 5),
+                 #false_positive = vector(length = 5),
+                 #false_negative = vector(length = 5),
+                 true_negative = vector(length = 5))
+j <- 1
+while(j <= length(mods)){
+  temp$true_positive[j] <- mods[[j]]$voters[mods[[j]]$validated == "Yes"]
+  #df$false_positive[i] <- mods[[i]]$voters[mods[[j]]$validated == "No"]
+  #df$false_negative[i] <- mods[[i]]$nonvoters[mods[[j]]$validated == "Yes"]
+  temp$true_negative[j] <- mods[[j]]$nonvoters[mods[[j]]$validated == "No"]
+  j = j +1
+}
+                 
+temp$model <- factor(temp$model, levels = temp$model)
+
+df <- rbind(df, temp)
+}
+
+# visualize
+data <- df %>% gather(type, value, true_positive:true_negative) %>%
+  mutate(type = replace(type, type == 'true_positive', 'true positive'),
+         type = replace(type, type == 'true_negative', 'true negative'),
+         model2 = model) %>%
+  filter(type == "true positive")
+
+ggplot(data = data, aes(value, group = model)) +
+  geom_histogram(data = data[2:length(data)], aes(value, group = model2), fill = "grey") +
+  geom_histogram(fill = "black") +
+  facet_wrap(~model, labeller = label_wrap_gen()) +
+  #facet_wrap(c("model","type"), labeller = label_wrap_gen(multi_line=FALSE)) +
+  labs(x = "", y = "", title = "True positive rates for state-by-state vote intent models") +
+  scale_fill_grey() +
+  theme(legend.title=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+data <- df %>% gather(type, value, true_positive:true_negative) %>%
+  mutate(type = replace(type, type == 'true_positive', 'true positive'),
+         type = replace(type, type == 'true_negative', 'true negative'),
+         model2 = model) %>%
+  filter(type == "true negative")
+
+ggplot(data = data, aes(value, group = model)) +
+  geom_histogram(data = data[2:length(data)], aes(value, group = model2), fill = "grey") +
+  geom_histogram(fill = "black") +
+  facet_wrap(~model, labeller = label_wrap_gen()) +
+  #facet_wrap(c("model","type"), labeller = label_wrap_gen(multi_line=FALSE)) +
+  labs(x = "", y = "", title = "True negative rates for state-by-state vote intent models") +
+  scale_fill_grey() +
+  theme(legend.title=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+```
+
+
+## Election Predictions
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# create margin-calcuating function
+vote_choice_intent_state <- function(location, intention){
+  pooled %>% 
+  filter(state == location, intent %in% intention) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(100*n/sum(n),2)) %>% 
+  select(-n)
+}
+
+# other set up 
+all_states <- unique(pooled$state)
+df <- data.frame(model = vector(length = 0),
+                 state = vector(length = 0),
+                 margin = vector(length = 0))
+# loop
+for(i in all_states){
+mod1 <- vote_choice_intent_state(i, c(1,3))
+mod2 <- vote_choice_intent_state(i, c(1,2,3))
+mod3 <- vote_choice_intent_state(i, c(1,2,3,5))
+mod4 <- vote_choice_intent_state(i, c(1,2,3,4,5))
+
+mods <- list(mod1, mod2, mod3, mod4)
+
+temp <- data.frame(model = c("Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
+                 state = i,
+                 margin = vector(length = 4))
+
+j <- 1
+while(j <= length(mods)){
+  temp$margin[j] = mods[[j]]$vote_share[mods[[j]]$choice == "Hillary Clinton (Democrat)"] - mods[[j]]$vote_share[mods[[j]]$choice == "Donald Trump (Republican)"]
+  j = j + 1
+}
+
+temp$model <- factor(temp$model, levels = temp$model)
+
+df <- rbind(df, temp)
+}
+
+# calculate actual margins in each state among validated voters
+state_margins <- pooled %>% filter(year == 2016, validated == "Voted",
+                                   choice %in% c("Donald Trump (Republican)",
+                                                 "Hillary Clinton (Democrat)",
+                                                 "Gary Johnson (Libertarian)",
+                                                 "Jill Stein (Green)","Other",
+                                                 "I'm Not Sure")) %>% 
+  group_by(state, choice) %>%
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(100*n/sum(n),2)) %>% 
+  ungroup() %>% 
+  group_by(state) %>% 
+  mutate(margin = vote_share - lag(vote_share, default=first(vote_share))) %>% 
+  ungroup() %>% 
+  filter(choice == "Hillary Clinton (Democrat)") %>% 
+  select(state, margin)
+  
+# combine validated voter margins and model margins
+df <- left_join(df, state_margins, by = 'state') %>% 
+  rename(model_margin = margin.x, validated_margin = margin.y)
+
+# visualize
+fig2 <- ggplot(df) +
+  geom_point(aes(x = model_margin, y = validated_margin), alpha = 0.35) +
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  facet_wrap(~model, labeller = label_wrap_gen()) +
+  labs(x = "Clinton's predicted margin of victory", 
+       y = "Clinton's margin of victory among validated voters", 
+       title = "") + 
+  theme(plot.title = element_text(hjust = 0.5))
+fig2
+```
+
+Clinton's chances are overestimated by an average of 2.43 points, across all vote intent model types. Breaking it down by type:
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+df %>% group_by(model) %>% summarise(mean_error = mean(model_margin - validated_margin),
+                                     MSE = mean((model_margin - validated_margin)^2))
+```
+
+# Vote Intent + Vote History
+
+This section will necessarily exclude all respondents who were not old enough to vote in the 2012 election (are 22 years old or younger now).
+
+## Individual-level turnout
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+validation_intent_history_state <- function(location, intention, history){
+  willvote <- pooled %>% 
+    filter(state == location, year == 2016, 
+           intent %in% intention, vote_history %in% history, age >= 22)
+  wontvote <- pooled %>% filter(state == location, year == 2016, age >= 22) %>% 
+    anti_join(willvote, by = "case_id")
+  # add voters ineligible to vote in 2012
+  ineligible_voters12_willvote <- pooled %>% filter(state == location, 
+                                                    age < 22, intent %in% intention)
+  ineligible_voters12_wontvote <- pooled %>% filter(state == location, age < 22) %>% 
+    anti_join(ineligible_voters12_willvote, by = "case_id")
+  
+  willvote <- rbind(willvote, ineligible_voters12_willvote)
+  wontvote <- rbind(wontvote, ineligible_voters12_wontvote)
+
+  pred_voters <- willvote %>% 
+    count(validated = (validated == 'Voted')) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  pred_nonvoters <- wontvote %>% 
+    count(validated = (validated == 'Voted')) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+    rename(voters = percent_v, nonvoters = percent_nv)
+}
+
+# set up work
+all_states <- unique(pooled$state)
+df <- data.frame(model = vector( length = 0),
+                 state = vector(length = 0),
+                 history = vector(length = 0),
+                 true_positive = vector(length = 0),
+                 true_negative = vector(length = 0))
+
+for(i in all_states){
+# voted in 2012
+mod1 <- validation_intent_history_state(i, c(1,3), c(1))
+mod2 <- validation_intent_history_state(i, c(1,2,3), c(1))
+mod3 <- validation_intent_history_state(i, c(1,2,3,5), c(1))
+mod4 <- validation_intent_history_state(i, c(1,2,3,4,5), c(1))
+
+mods <- list(mod1, mod2, mod3, mod4)
+
+df1 <- data.frame(model = c("Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
+                 state = i,
+                 history = "Voted in 2012",
+                 true_positive = vector(length = 4),
+                 true_negative = vector(length = 4))
+j <- 1
+while(j <= length(mods)){
+  df1$true_positive[j] <- mods[[j]]$voters[mods[[j]]$validated == "Yes"]
+  df1$true_negative[j] <- mods[[j]]$nonvoters[mods[[j]]$validated == "No"]
+  j = j +1
+}
+                 
+df1$model <- factor(df1$model, levels = df1$model)
+
+# voted in 2012, don't recall, or didn't vote
+mod1 <- validation_intent_history_state(i, c(1,3), c(1,0))
+mod2 <- validation_intent_history_state(i, c(1,2,3), c(1,0))
+mod3 <- validation_intent_history_state(i, c(1,2,3,5), c(1,0))
+mod4 <- validation_intent_history_state(i, c(1,2,3,4,5), c(1,0))
+
+mods <- list(mod1, mod2, mod3, mod4)
+
+df2 <- data.frame(model = c("Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
+                 state = i,
+                 history = "All",
+                 true_positive = vector(length = 4),
+                 true_negative = vector(length = 4))
+k <- 1
+while(k <= length(mods)){
+  df2$true_positive[k] <- mods[[k]]$voters[mods[[k]]$validated == "Yes"]
+  df2$true_negative[k] <- mods[[k]]$nonvoters[mods[[k]]$validated == "No"]
+  k = k +1
+}
+                 
+df2$model <- factor(df2$model, levels = df2$model)
+
+temp <- rbind(df1, df2)
+df <- rbind(df, temp)
+}
+
+# visualize
+data <- df %>% gather(type, value, true_positive:true_negative) %>%
+  mutate(type = replace(type, type == 'true_positive', 'true positive'),
+         type = replace(type, type == 'true_negative', 'true negative'),
+         model2 = model) %>%
+  filter(type == "true positive", history == "Voted in 2012")
+
+ggplot(data = data, aes(value, group = model)) +
+  geom_histogram(data = data[2:length(data)], aes(value, group = model2), fill = "grey") +
+  geom_histogram(fill = "black") +
+  facet_wrap(~model, labeller = label_wrap_gen()) +
+  labs(x = "", y = "", title = "True positive rates for state-by-state vote intent + voted in 2012 models") +
+  scale_fill_grey() +
+  theme(legend.title=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+```
+
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+data <- df %>% gather(type, value, true_positive:true_negative) %>%
+  mutate(type = replace(type, type == 'true_positive', 'true positive'),
+         type = replace(type, type == 'true_negative', 'true negative'),
+         model2 = model) %>%
+  filter(type == "true negative", history == "Voted in 2012")
+
+ggplot(data = data, aes(value, group = model)) +
+  geom_histogram(data = data[2:length(data)], aes(value, group = model2), fill = "grey") +
+  geom_histogram(fill = "black") +
+  facet_wrap(~model, labeller = label_wrap_gen()) +
+  labs(x = "", y = "", title = "True negative rates for state-by-state vote intent + voted in 2012 models") +
+  scale_fill_grey() +
+  theme(legend.title=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+```
+
+
+## Election Predictions
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# create function
+vote_choice_intent_state <- function(location, intention, history){
+  voters_eligible12 <- pooled %>% 
+    filter(state == location, year == 2016, 
+           intent %in% intention, vote_history %in% history, age >= 22) 
+  voters_ineligible12 <- pooled %>% 
+    filter(state == location, year == 2016, intent %in% intention, age < 22) 
+  voters <- rbind(voters_eligible12, voters_ineligible12)
+  
+ voters %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(100*n/sum(n),2)) %>% 
+  select(-n)
+}
+
+# set up work
+all_states <- unique(pooled$state)
+df <- data.frame(model = vector( length = 0),
+                 state = vector(length = 0),
+                 history = vector(length = 0),
+                 margin = vector(length = 0))
+
+for(i in all_states){
+# voted in 2012
+mod1 <- vote_choice_intent_state(i, c(1,3), 1)
+mod2 <- vote_choice_intent_state(i, c(1,2,3), 1)
+mod3 <- vote_choice_intent_state(i, c(1,2,3,5), 1)
+mod4 <- vote_choice_intent_state(i, c(1,2,3,4,5), 1)
+
+mods <- list(mod1, mod2, mod3, mod4)
+
+df1 <- data.frame(model = c("Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
+                 state = i,
+                 history = "Voted in 2012",
+                 margin = vector(length = 4))
+
+j <- 1
+while(j <= length(mods)){
+  df1$margin[j] = mods[[j]]$vote_share[mods[[j]]$choice == "Hillary Clinton (Democrat)"] - mods[[j]]$vote_share[mods[[j]]$choice == "Donald Trump (Republican)"]
+  j = j + 1
+}
+
+df1$model <- factor(df1$model, levels = df1$model)
+
+# voted in 2012, don't recall, or did not vote
+mod1 <- vote_choice_intent_state(i, c(1,3), c(1,0))
+mod2 <- vote_choice_intent_state(i, c(1,2,3), c(1,0))
+mod3 <- vote_choice_intent_state(i, c(1,2,3,5), c(1,0))
+mod4 <- vote_choice_intent_state(i, c(1,2,3,4,5), c(1,0))
+
+mods <- list(mod1, mod2, mod3, mod4)
+
+df2 <- data.frame(model = c("Already voted + will definitely vote", "Already voted + will definitely or probably vote", "Already voted + will definitely or probably vote + undecided", "All respondents"),
+                 state = i,
+                 history = "All",
+                 margin = vector(length = 4))
+
+k <- 1
+while(k <= length(mods)){
+  df2$margin[k] = mods[[k]]$vote_share[mods[[k]]$choice == "Hillary Clinton (Democrat)"] - mods[[k]]$vote_share[mods[[k]]$choice == "Donald Trump (Republican)"]
+  k = k + 1
+}
+
+df2$model <- factor(df2$model, levels = df2$model)
+
+temp <- rbind(df1, df2)
+df <- rbind(df, temp)
+}
+
+# combine validated voter margins and model margins
+df <- left_join(df, state_margins, by = 'state') %>% 
+  rename(model_margin = margin.x, validated_margin = margin.y)
+
+# visualize
+fig4 <- df %>% 
+  filter(history == "Voted in 2012") %>% 
+  ggplot() +
+  geom_point(aes(x = model_margin, y = validated_margin), alpha = 0.35) +
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  facet_wrap(~model, labeller = label_wrap_gen()) +
+  labs(x = "Clinton's predicted margin of victory", 
+       y = "Clinton's margin of victory among validated voters", 
+       title = "") + 
+  theme(plot.title = element_text(hjust = 0.5))
+fig4
+```
+
+Looks like this overestimates Clinton's chances a bit. The average difference between a state's predicted margin and margin among validated voters is a little over 2.5 points in favor of Clinton, across all model types. Looking at specific model types:
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+df %>% group_by(model) %>% summarise(mean_error = mean(model_margin - validated_margin),
+                                     MSE = mean((model_margin - validated_margin)^2))
+```
+
+# Perry-Gallup Index
+
+Not many states have a large number of people with a Perry-Gallup index of 6, so I'll combine the 5s and 6s for each state.
+
+## Individual-level turnout
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# create function to check individual-level voting predictions
+validation_by_pg_state <- function(location, index) {
+  willvote <- pooled %>% 
+    filter(state == location, perry_gallup %in% index)
+  wontvote <- pooled %>% 
+    filter(state == location) %>% 
+    anti_join(willvote, by = "case_id")
+
+  pred_voters <- willvote %>% 
+    count(validated = (validated == 'Voted')) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  pred_nonvoters <- wontvote %>% 
+    count(validated = (validated == 'Voted')) %>% 
+    mutate(percent = round((n/sum(n))*100,2)) %>% 
+    mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+    mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+    select(-n)
+  
+  left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+    rename(voters = percent_v, nonvoters = percent_nv)
+}
+
+# set up work
+all_states <- unique(pooled$state)
+df <- data.frame(model = vector(length = 0),
+                 state = vector(length = 0),
+                 true_positive = vector(length = 0),
+                 true_negative = vector(length = 0))
+
+# loop through all states
+
+for(i in all_states){
+mod1 <- validation_by_pg_state(i, c(6,5))
+mod2 <- validation_by_pg_state(i, c(6,5,4))
+mod3 <- validation_by_pg_state(i, c(6,5,4,3))
+mod4 <- validation_by_pg_state(i, c(6,5,4,3,2))
+mod5 <- validation_by_pg_state(i, c(6,5,4,3,2,1))
+
+mods <- list(mod1, mod2, mod3, mod4, mod5)
+
+temp <- data.frame(model = c("6s and 5s","6s, 5s, and 4s","6s, 5s, 4s, and 3s", 
+                           "6s, 5s, 4s, 3s, and 2s","6s, 5s, 4s, 3s, 2s, and 1s"),
+                 state = i,
+                 true_positive = vector(length = 5),
+                 true_negative = vector(length = 5))
+j <- 1
+while(j <= length(mods)){
+  temp$true_positive[j] <- mods[[j]]$voters[mods[[j]]$validated == "Yes"]
+  temp$true_negative[j] <- mods[[j]]$nonvoters[mods[[j]]$validated == "No"]
+  j = j + 1
+}
+                 
+temp$model <- factor(temp$model, levels = temp$model)
+df <- rbind(df, temp)
+}
+
+# visualize
+data <- df %>% gather(type, value, true_positive:true_negative) %>%
+  mutate(type = replace(type, type == 'true_positive', 'true positive'),
+         type = replace(type, type == 'true_negative', 'true negative'),
+         model2 = model) %>%
+  filter(type == "true positive")
+
+ggplot(data = data, aes(value, group = model)) +
+  geom_histogram(data = data[2:length(data)], aes(value, group = model2), fill = "grey") +
+  geom_histogram(fill = "black") +
+  facet_wrap(~model, labeller = label_wrap_gen()) +
+  #facet_wrap(c("model","type"), labeller = label_wrap_gen(multi_line=FALSE)) +
+  labs(x = "", y = "", title = "True positive rates for state-by-state Perry-Gallup index models") +
+  scale_fill_grey() +
+  theme(legend.title=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+data <- df %>% gather(type, value, true_positive:true_negative) %>%
+  mutate(type = replace(type, type == 'true_positive', 'true positive'),
+         type = replace(type, type == 'true_negative', 'true negative'),
+         model2 = model) %>%
+  filter(type == "true negative")
+
+ggplot(data = data, aes(value, group = model)) +
+  geom_histogram(data = data[2:length(data)], aes(value, group = model2), fill = "grey") +
+  geom_histogram(fill = "black") +
+  facet_wrap(~model, labeller = label_wrap_gen()) +
+  labs(x = "", y = "", title = "True negative rates for state-by-state Perry-Gallup index models") +
+  scale_fill_grey() +
+  theme(legend.title=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+```
+
+
+## Election Predictions
+
+```{r, echo = FALSE, warning = FALSE}
+# create function to calculate margin
+vote_choice_pg_state <- function(location, index){
+  pooled %>% 
+  filter(state == location, perry_gallup %in% index) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+# set up work
+all_states <- unique(pooled$state)
+df <- data.frame(model = vector(length = 0),
+                 state = vector(length = 0),
+                 margin = vector(length = 0))
+
+# loop
+for(i in all_states){
+mod1 <- vote_choice_pg_state(i, c(6,5))
+mod2 <- vote_choice_pg_state(i, c(6,5,4))
+mod3 <- vote_choice_pg_state(i, c(6,5,4,3))
+mod4 <- vote_choice_pg_state(i, c(6,5,4,3,2))
+mod5 <- vote_choice_pg_state(i, c(6,5,4,3,2,1))
+
+mods <- list(mod1, mod2, mod3, mod4, mod5)
+
+temp <- data.frame(model = c("6s and 5s","6s, 5s, and 4s","6s, 5s, 4s, and 3s", 
+                           "6s, 5s, 4s, 3s, and 2s","6s, 5s, 4s, 3s, 2s, and 1s"),
+                 state = i,
+                 margin = vector(length = 5))
+
+j <- 1
+while(j <= length(mods)){
+  temp$margin[j] = mods[[j]]$vote_share[mods[[j]]$choice == "Hillary Clinton (Democrat)"] - mods[[j]]$vote_share[mods[[j]]$choice == "Donald Trump (Republican)"]
+  j = j + 1
+}
+
+temp$model <- factor(temp$model, levels = temp$model)
+df <- rbind(df, temp)
+}
+
+# combine validated voter margins and model margins
+df <- left_join(df, state_margins, by = 'state') %>% 
+  rename(model_margin = margin.x, validated_margin = margin.y)
+
+# visualize
+fig6 <- df %>% 
+  ggplot() +
+  geom_point(aes(x = model_margin, y = validated_margin), alpha = 0.35) +
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  facet_wrap(~model, labeller = label_wrap_gen()) +
+  labs(x = "Clinton's predicted margin of victory", 
+       y = "Clinton's margin of victory among validated voters", 
+       title = "") +
+  theme(plot.title = element_text(hjust = 0.5))
+fig6
+```
+
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+df %>% group_by(model) %>% summarise(mean_error = mean(model_margin - validated_margin),
+                                     MSE = mean((model_margin - validated_margin)^2))
+```
+
+
+# Logistic Regression
+
+## Perry-Gallup index
+
+### Individual-level turnout
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# set up
+predictions_all <- data.frame()
+all_states <- unique(pooled$state)
+
+# create models and apply them to test data for all states
+for(i in all_states){
+# create training set 
+train <- pooled %>% filter(state == i, year %in% c(2008,2010,2012,2014))
+test <- pooled %>% filter(state == i, year == 2016)
+
+# run unweighted model
+formula <- as.formula(validated=='Voted' ~ vote_history*intent + interest + registration + 
+                        eligible)
+model <- glm(formula, family = binomial(link = "logit"), data = train)
+
+# apply the models to test data
+# unweighted
+predictions <- cbind(test, predict(model, newdata = test, type = "response"))
+predictions <- as.data.frame(predictions)
+predictions <- predictions %>% 
+  rename(response = 'predict(model, newdata = test, type = \"response\")')
+predictions <- predictions %>% mutate(state = i)
+
+# all this data set to all
+predictions_all <- rbind(predictions_all, predictions)
+}
+```
+
+I'll first visualize the distribution of vote propensity scores for 9 random states using this model.
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+predictions_all %>% 
+  filter(state %in% sample(all_states, 9)) %>% 
+ggplot() +
+  geom_histogram(aes(x = response), position = "identity", bins = 20) +
+  facet_wrap(~state) +
+  coord_cartesian(xlim = c(0, 1)) +
+  labs(title = "Predicted vote propensity scores for 2016 CCES sample, by state",
+       x = "Vote propensity score") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r, include = FALSE, echo = FALSE, warning = FALSE, message = FALSE}
+# # consider turnout rates from 0.01 to 0.99 by 1
+# turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
+# 
+# # set up work
+# all_states <- unique(pooled$state)
+# true_pos_neg_rates_by_turnout_all <- data.frame()
+# 
+# # calculate true positive and negative rates for each level of turnout
+# validation_by_logreg_state <- function(location, turnout){
+#   willvote <- predictions_all %>% filter(state == location) %>% 
+#     top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+#         wt = response)
+#   wontvote <- predictions_all %>% filter(state == location) %>% 
+#     anti_join(willvote, by = "case_id")
+# 
+#   pred_voters <- willvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   pred_nonvoters <- wontvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+#     rename(voters = percent_v, nonvoters = percent_nv)
+# }
+# 
+# # loop through each state and calculate true positive/negative rates by turnout
+# # not particularly sure this is a good way to do this because there is so little distinction 
+# # between propensity scores here (for this set of predictors)
+# 
+# for (i in all_states){
+# true_pos_neg_rates_by_turnout <- data.frame()
+# j <- 1
+# while(j <= length(turnout_rates)){
+#    temp <- validation_by_logreg_state(i, turnout_rates[j])
+#    true_pos_neg_rates_by_turnout[j,1] <- temp$voters[temp$validated=="Yes"]
+#    true_pos_neg_rates_by_turnout[j,2] <- temp$nonvoters[temp$validated=="No"]
+#    true_pos_neg_rates_by_turnout[j,3] <- j
+#    true_pos_neg_rates_by_turnout[j,4] <- i
+#    j = j +1
+# }
+# true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, true_pos_neg_rates_by_turnout)
+# }
+
+```
+
+### Election Predictions
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# consider turnout rates from 0.01 to 0.99 by 1
+turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
+
+# no propensity weight for margin
+vote_choice_logreg_state <- function(location, turnout){
+  predictions_all %>% filter(state == location) %>% 
+  top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+        wt = response) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+# margin weighted by propensity score
+vote_choice_logreg_weighted_state <- function(location){
+  predictions_all %>% filter(state == location) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight*response)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+# set up work
+all_state <- unique(pooled$states)
+margin_by_turnout_all <- data.frame()
+margin_by_weighted_turnout_all <- data.frame()
+
+#####
+
+# loop not working
+# calculate validated margin by state
+
+#####
+
+# unweighted margin
+for (i in all_states){
+  
+margin_by_turnout <- data.frame()
+j <- 1
+while(j <= length(turnout_rates)){
+   temp <- vote_choice_logreg_state(i, turnout_rates[j])
+   
+   # break loop if there are no estimates generated, for whatever reason
+   while (length(unique(temp$choice)) == 0) {
+     j = j + 1
+     temp <- vote_choice_logreg_state(i, turnout_rates[j])
+     }
+     
+   # put Clinton or Trump at 0 if no respondent said they'd vote for them
+   if(!'Hillary Clinton (Democrat)' %in% unique(temp$choice)){
+     newrow <- c('Hillary Clinton (Democrat)', 0)
+     names(newrow) <- c("choice","vote_share")
+     temp <- rbind(temp, newrow)
+   } 
+   if(!'Donald Trump (Republican)' %in% unique(temp$choice)){
+     newrow <- c('Donald Trump (Republican)', 0)
+     names(newrow) <- c("choice","vote_share")
+     temp <- rbind(temp, newrow)
+   } 
+   # make sure we have the right data type
+   temp$vote_share <- as.numeric(temp$vote_share)
+   
+
+   margin_by_turnout[j,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+   margin_by_turnout[j,2] <- j
+   margin_by_turnout[j,3] <- i
+   j = j +1
+   }
+
+# add to master data frame
+margin_by_turnout_all <- rbind(margin_by_turnout_all, margin_by_turnout)
+}
+
+# weighted margin
+for (i in all_states){
+  
+margin_by_weighted_turnout <- data.frame()
+temp <- vote_choice_logreg_weighted_state(i)
+margin_by_weighted_turnout[1,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+margin_by_weighted_turnout[1,2] <- i
+
+margin_by_weighted_turnout_all <- rbind(margin_by_weighted_turnout_all, margin_by_weighted_turnout)
+}
+
+# clean and compute difference between predicted margin and validated margin/weighted margin
+margin_by_turnout_all <- margin_by_turnout_all %>% 
+  rename(margin = V1, i = V2, state = V3) %>% 
+  left_join(validated_margin16_state, by = 'state') %>% 
+  rename(margin = margin.x, validated_margin = margin.y) %>% 
+  mutate(error = margin - validated_margin)
+
+margin_by_weighted_turnout_all <- margin_by_weighted_turnout_all %>% 
+  rename(margin = V1, state = V2)
+
+margin_by_turnout_all <- margin_by_turnout_all %>% 
+  left_join(margin_by_weighted_turnout_all, by  = 'state') %>% 
+  rename(margin = margin.x, margin_weighted = margin.y) %>% 
+  mutate(error_weighted = margin - margin_weighted)
+
+mean_errors <- margin_by_turnout_all %>% group_by(i) %>% 
+  summarise(avg_error = mean(error))
+
+# visualize for margin - validated margin
+fig9a <- ggplot() +
+  geom_point(data = margin_by_turnout_all, 
+             aes(x = turnout_rates[i]*100, y = error), colour = "grey", alpha = 0.35) +
+  geom_line(data = mean_errors, 
+             aes(x = turnout_rates[i]*100, y = avg_error), colour = "blue", size = 1) +
+  geom_hline(yintercept = 0, lty = 2, col = "black") +
+  labs(title = "a. Perry-Gallup index",
+       x = "Turnout (%)",
+       y = "Error between predicted and actual margin") +
+  coord_cartesian(xlim = c(30, 100), ylim = c(-50,50)) +
+  theme(plot.title = element_text(hjust = 0.5))
+fig9a
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# visualize for weighted margin
+fig10a <- margin_by_turnout_all %>% group_by(state) %>% mutate(weighted = mean(margin_weighted),
+         validated = mean(validated_margin)) %>% 
+  ggplot() + 
+  geom_point(aes(x = weighted, y = validated), alpha = 0.35) + 
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  labs(title = "a. Perry- Gallup index",
+       x = "Predicted margin of victory for Clinton", y = "Validated margin of victory for Clinton") +
+  theme(plot.title = element_text(hjust = 0.5))
+fig10a
+```
+
+
+## Perry-Gallup index + all variables potentially related to turnout
+
+This next model considers the Perry-Gallup index variables mentioned in the previous section in addition to a whole slew of demographic variables that literature has suggested may be tied to turnout or to misreporting voting intention. These include:
+
+* Age
+* Race
+* Education
+* Income
+* Partisan strength
+* Religiosity
+* Marital status
+* Residential mobility
+* ~~Racial composition of district~~
+* ~~Political interest/activism~~
+    + ~~Watching news~~
+    + ~~Reading newspaper~~
+    
+The racial composition of district and political interest/activism items are not included in my model because they are not widely available on the CCES surveys I consider. Again, models are trained on data from each state and then used to predict the election result in that state.
+
+### Individual-level turnout
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# set up
+predictions_all <- data.frame()
+all_states <- unique(pooled$state)
+
+# create models and apply them to test data for all states
+for(i in all_states){
+# create training set 
+train <- pooled %>% filter(state == i, year %in% c(2008,2010,2012,2014))
+test <- pooled %>% filter(state == i, year == 2016)
+
+# adjust South Dakota sample because it has Asian respondents in test but not train 
+# (Asian -> other)
+if (i == "South Dakota") {test$race[test$race == 4] <- 6} 
+
+# run unweighted model
+formula <- as.formula(validated=='Voted' ~ vote_history*intent + interest + registration + 
+                        gender + age + race + education + income_new + 
+                        partisan_strength + religiosity + marital_status +
+                        residential_mobility)
+model <- glm(formula, family = binomial(link = "logit"), data = train)
+
+# apply the models to test data
+# unweighted
+predictions <- cbind(test, predict(model, newdata = test, type = "response"))
+predictions <- as.data.frame(predictions)
+predictions <- predictions %>% 
+  rename(response = 'predict(model, newdata = test, type = \"response\")')
+predictions <- predictions %>% mutate(state = i)
+
+# all this data set to all
+predictions_all <- rbind(predictions_all, predictions)
+}
+```
+
+I'll first visualize the distribution of vote propensity scores for 9 random states using this model.
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+predictions_all %>% 
+  filter(state %in% sample(all_states, 9)) %>% 
+ggplot() +
+  geom_histogram(aes(x = response), position = "identity", bins = 20) +
+  facet_wrap(~state) +
+  coord_cartesian(xlim = c(0, 1)) +
+  labs(title = "Predicted vote propensity scores for 2016 CCES sample, by state",
+       x = "Vote propensity score") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r, include = FALSE, echo = FALSE, warning = FALSE, message = FALSE}
+# # consider turnout rates from 0.01 to 0.99 by 1
+# turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
+# 
+# # set up work
+# all_states <- unique(pooled$state)
+# true_pos_neg_rates_by_turnout_all <- data.frame()
+# 
+# # calculate true positive and negative rates for each level of turnout
+# validation_by_logreg_state <- function(location, turnout){
+#   willvote <- predictions_all %>% filter(state == location) %>% 
+#     top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+#         wt = response)
+#   wontvote <- predictions_all %>% filter(state == location) %>% 
+#     anti_join(willvote, by = "case_id")
+# 
+#   pred_voters <- willvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   pred_nonvoters <- wontvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+#     rename(voters = percent_v, nonvoters = percent_nv)
+# }
+# 
+# # loop through each state and calculate true positive/negative rates by turnout
+# # not particularly sure this is a good way to do this because there is so little distinction 
+# # between propensity scores here (for this set of predictors)
+# 
+# for (i in all_states){
+# true_pos_neg_rates_by_turnout <- data.frame()
+# j <- 1
+# while(j <= length(turnout_rates)){
+#    temp <- validation_by_logreg_state(i, turnout_rates[j])
+#    true_pos_neg_rates_by_turnout[j,1] <- temp$voters[temp$validated=="Yes"]
+#    true_pos_neg_rates_by_turnout[j,2] <- temp$nonvoters[temp$validated=="No"]
+#    true_pos_neg_rates_by_turnout[j,3] <- j
+#    true_pos_neg_rates_by_turnout[j,4] <- i
+#    j = j +1
+# }
+# true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, true_pos_neg_rates_by_turnout)
+# }
+```
+
+### Election Predictions
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# no propensity weight for margin
+vote_choice_logreg_state <- function(location, turnout){
+  predictions_all %>% filter(state == location) %>% 
+  top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+        wt = response) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+# margin weighted by propensity score
+vote_choice_logreg_weighted_state <- function(location){
+  predictions_all %>% filter(state == location) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight*response)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+# set up work
+all_state <- unique(pooled$states)
+margin_by_turnout_all <- data.frame()
+margin_by_weighted_turnout_all <- data.frame()
+
+# unweighted margin
+for (i in all_states){
+  
+margin_by_turnout <- data.frame()
+j <- 1
+while(j <= length(turnout_rates)){
+   temp <- vote_choice_logreg_state(i, turnout_rates[j])
+   
+   # break loop if there are no estimates generated, for whatever reason
+   while (length(unique(temp$choice)) == 0) {
+     j = j + 1
+     temp <- vote_choice_logreg_state(i, turnout_rates[j])
+     }
+     
+   # put Clinton or Trump at 0 if no respondent said they'd vote for them
+   if(!'Hillary Clinton (Democrat)' %in% unique(temp$choice)){
+     newrow <- c('Hillary Clinton (Democrat)', 0)
+     names(newrow) <- c("choice","vote_share")
+     temp <- rbind(temp, newrow)
+   } 
+   if(!'Donald Trump (Republican)' %in% unique(temp$choice)){
+     newrow <- c('Donald Trump (Republican)', 0)
+     names(newrow) <- c("choice","vote_share")
+     temp <- rbind(temp, newrow)
+   } 
+   # make sure we have the right data type
+   temp$vote_share <- as.numeric(temp$vote_share)
+   
+
+   margin_by_turnout[j,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+   margin_by_turnout[j,2] <- j
+   margin_by_turnout[j,3] <- i
+   j = j +1
+   }
+
+# add to master data frame
+margin_by_turnout_all <- rbind(margin_by_turnout_all, margin_by_turnout)
+}
+
+# weighted margin
+for (i in all_states){
+  
+margin_by_weighted_turnout <- data.frame()
+temp <- vote_choice_logreg_weighted_state(i)
+margin_by_weighted_turnout[1,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+margin_by_weighted_turnout[1,2] <- i
+
+margin_by_weighted_turnout_all <- rbind(margin_by_weighted_turnout_all, margin_by_weighted_turnout)
+}
+
+# clean and compute difference between predicted margin and validated margin/weighted margin
+margin_by_turnout_all <- margin_by_turnout_all %>% 
+  rename(margin = V1, i = V2, state = V3) %>% 
+  left_join(validated_margin16_state, by = 'state') %>% 
+  rename(margin = margin.x, validated_margin = margin.y) %>% 
+  mutate(error = margin - validated_margin)
+
+margin_by_weighted_turnout_all <- margin_by_weighted_turnout_all %>% 
+  rename(margin = V1, state = V2)
+
+margin_by_turnout_all <- margin_by_turnout_all %>% 
+  left_join(margin_by_weighted_turnout_all, by  = 'state') %>% 
+  rename(margin = margin.x, margin_weighted = margin.y) %>% 
+  mutate(error_weighted = margin - margin_weighted)
+
+mean_errors <- margin_by_turnout_all %>% group_by(i) %>% 
+  summarise(avg_error = mean(error))
+
+# visualize for margin - validated margin
+fig9b <- ggplot() +
+  geom_point(data = margin_by_turnout_all, 
+             aes(x = turnout_rates[i]*100, y = error), colour = "grey", alpha = 0.25) +
+  geom_line(data = mean_errors, 
+             aes(x = turnout_rates[i]*100, y = avg_error), colour = "blue", size = 1) +
+  geom_hline(yintercept = 0, lty = 2, col = "black") +
+  labs(title = "b. Perry-Gallup index + all variables potentially related to turnout",
+       x = "Turnout (%)",
+       y = "Error between predicted and actual margin") +
+  coord_cartesian(xlim = c(30, 100), ylim = c(-50,50)) +
+  theme(plot.title = element_text(hjust = 0.5))
+fig9b
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# visualize for margin - weighted margin
+# visualize for weighted margin
+fig10b <- margin_by_turnout_all %>% group_by(state) %>% mutate(weighted = mean(margin_weighted),
+         validated = mean(validated_margin)) %>% 
+  ggplot() + 
+  geom_point(aes(x = weighted, y = validated), alpha = 0.35) + 
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  labs(title = "b. Perry-Gallup index + all variables potentially related to turnout",
+       x = "Predicted margin of victory for Clinton", y = "Validated margin of victory for Clinton") +
+  theme(plot.title = element_text(hjust = 0.5))
+fig10b
+```
+
+## Perry-Gallup index + demographics+ structural election variables
+
+In addtion to the variables I included in the last mode, I now include structural election variables. I use a reformulation of Abramowitz's Time-for-Change model. The model predicts the vote share for the candidate of the incumbent's party based on 
+
+* the net approval rating of the sitting President (using the final Gallup poll in June of the election year) 
+* the annualized growth rate of real GDP in the second quarter of the election year (taken from the U.S. Department of Commerce's Bureau of Economic Analysis)
+* whether a first-term incumbent is running
+    + Since I also use midterm election years, I consider whether the incumbent and the President are from the same party (this is coded 1 in presidential election years and 1 or 0 in midterm years)
+* an indicator variable to measure the level of polarization (this was added in 2012): it is coded
+    + 1 if first-term incumbent running or open seat where incumbent president has net approval rating over 0 (presidential election years) or 1 if the House incumbent is from the same party as the President or if they are from different parties and the President has a net approval rating over 0 (midterm election years)
+    + 0 if no first-term incumbent or incumbent president has net approval rating less than 0 (presidential election years) or 0 if the House incumbent and President are from different parties and the presidential net approval rating is less than 0 (midterm election years)
+
+You can read more about his model [here](https://www.washingtonpost.com/blogs/ezra-klein/files/2012/08/abramowitz.pdf). Models are trained on data from each state and then used to predict the election result in that state.
+
+### Individual-level turnout
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# set up
+predictions_all <- data.frame()
+all_states <- unique(pooled$state)
+
+# create models and apply them to test data for all states
+for(i in all_states){
+# create training set 
+train <- pooled %>% filter(state == i, year %in% c(2008,2010,2012,2014))
+test <- pooled %>% filter(state == i, year == 2016)
+
+# adjust South Dakota sample because it has Asian respondents in test but not train 
+# (Asian -> other)
+if (i == "South Dakota") {test$race[test$race == 4] <- 6} 
+
+# run unweighted model
+if(i %in% c('Connecticut','Massachusetts', 'New Hampshire','Maine','Vermont',
+            'Rhode Island', 'District of Columbia')) {
+  formula <- as.formula(validated=='Voted' ~ vote_history*intent + interest + registration + 
+                        gender + age + race + education + income_new + 
+                        partisan_strength + religiosity + marital_status +
+                        residential_mobility + gdp_growth*approval*polarization)
+}
+else {
+  formula <- as.formula(validated=='Voted' ~ vote_history*intent + interest + registration + 
+                        gender + age + race + education + income_new + 
+                        partisan_strength + religiosity + marital_status +
+                        residential_mobility + gdp_growth*approval*incumbent*polarization)
+}
+model <- glm(formula, family = binomial(link = "logit"), data = train)
+
+# apply the models to test data
+# unweighted
+predictions <- cbind(test, predict(model, newdata = test, type = "response"))
+predictions <- as.data.frame(predictions)
+predictions <- predictions %>% 
+  rename(response = 'predict(model, newdata = test, type = \"response\")')
+predictions <- predictions %>% mutate(state = i)
+
+# all this data set to all
+predictions_all <- rbind(predictions_all, predictions)
+}
+```
+
+I'll first visualize the distribution of vote propensity scores for 9 random states using this model.
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+predictions_all %>% 
+  filter(state %in% sample(all_states, 9)) %>% 
+ggplot() +
+  geom_histogram(aes(x = response), position = "identity", bins = 20) +
+  facet_wrap(~state) +
+  coord_cartesian(xlim = c(0, 1)) +
+  labs(title = "Predicted vote propensity scores for 2016 CCES sample, by state",
+       x = "Vote propensity score") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r, include = FALSE, echo = FALSE, warning = FALSE, message = FALSE}
+# # consider turnout rates from 0.01 to 0.99 by 1
+# turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
+# 
+# # set up work
+# all_states <- unique(pooled$state)
+# true_pos_neg_rates_by_turnout_all <- data.frame()
+# 
+# # calculate true positive and negative rates for each level of turnout
+# validation_by_logreg_state <- function(location, turnout){
+#   willvote <- predictions_all %>% filter(state == location) %>% 
+#     top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+#         wt = response)
+#   wontvote <- predictions_all %>% filter(state == location) %>% 
+#     anti_join(willvote, by = "case_id")
+# 
+#   pred_voters <- willvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   pred_nonvoters <- wontvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+#     rename(voters = percent_v, nonvoters = percent_nv)
+# }
+# 
+# # loop through each state and calculate true positive/negative rates by turnout
+# # not particularly sure this is a good way to do this because there is so little distinction 
+# # between propensity scores here (for this set of predictors)
+# 
+# for (i in all_states){
+# true_pos_neg_rates_by_turnout <- data.frame()
+# j <- 1
+# while(j <= length(turnout_rates)){
+#    temp <- validation_by_logreg_state(i, turnout_rates[j])
+#    true_pos_neg_rates_by_turnout[j,1] <- temp$voters[temp$validated=="Yes"]
+#    true_pos_neg_rates_by_turnout[j,2] <- temp$nonvoters[temp$validated=="No"]
+#    true_pos_neg_rates_by_turnout[j,3] <- j
+#    true_pos_neg_rates_by_turnout[j,4] <- i
+#    j = j +1
+# }
+# true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, true_pos_neg_rates_by_turnout)
+# }
+```
+
+### Election Predictions
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# no propensity weight for margin
+vote_choice_logreg_state <- function(location, turnout){
+  predictions_all %>% filter(state == location) %>% 
+  top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+        wt = response) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+# margin weighted by propensity score
+vote_choice_logreg_weighted_state <- function(location){
+  predictions_all %>% filter(state == location) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight*response)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+# set up work
+all_state <- unique(pooled$states)
+margin_by_turnout_all <- data.frame()
+margin_by_weighted_turnout_all <- data.frame()
+
+# unweighted margin
+for (i in all_states){
+  
+margin_by_turnout <- data.frame()
+j <- 1
+while(j <= length(turnout_rates)){
+   temp <- vote_choice_logreg_state(i, turnout_rates[j])
+   
+   # break loop if there are no estimates generated, for whatever reason
+   while (length(unique(temp$choice)) == 0) {
+     j = j + 1
+     temp <- vote_choice_logreg_state(i, turnout_rates[j])
+     }
+     
+   # put Clinton or Trump at 0 if no respondent said they'd vote for them
+   if(!'Hillary Clinton (Democrat)' %in% unique(temp$choice)){
+     newrow <- c('Hillary Clinton (Democrat)', 0)
+     names(newrow) <- c("choice","vote_share")
+     temp <- rbind(temp, newrow)
+   } 
+   if(!'Donald Trump (Republican)' %in% unique(temp$choice)){
+     newrow <- c('Donald Trump (Republican)', 0)
+     names(newrow) <- c("choice","vote_share")
+     temp <- rbind(temp, newrow)
+   } 
+   # make sure we have the right data type
+   temp$vote_share <- as.numeric(temp$vote_share)
+   
+
+   margin_by_turnout[j,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+   margin_by_turnout[j,2] <- j
+   margin_by_turnout[j,3] <- i
+   j = j +1
+   }
+
+# add to master data frame
+margin_by_turnout_all <- rbind(margin_by_turnout_all, margin_by_turnout)
+}
+
+# weighted margin
+for (i in all_states){
+  
+margin_by_weighted_turnout <- data.frame()
+temp <- vote_choice_logreg_weighted_state(i)
+margin_by_weighted_turnout[1,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+margin_by_weighted_turnout[1,2] <- i
+
+margin_by_weighted_turnout_all <- rbind(margin_by_weighted_turnout_all, margin_by_weighted_turnout)
+}
+
+# clean and compute difference between predicted margin and validated margin/weighted margin
+margin_by_turnout_all <- margin_by_turnout_all %>% 
+  rename(margin = V1, i = V2, state = V3) %>% 
+  left_join(validated_margin16_state, by = 'state') %>% 
+  rename(margin = margin.x, validated_margin = margin.y) %>% 
+  mutate(error = margin - validated_margin)
+
+margin_by_weighted_turnout_all <- margin_by_weighted_turnout_all %>% 
+  rename(margin = V1, state = V2)
+
+margin_by_turnout_all <- margin_by_turnout_all %>% 
+  left_join(margin_by_weighted_turnout_all, by  = 'state') %>% 
+  rename(margin = margin.x, margin_weighted = margin.y) %>% 
+  mutate(error_weighted = margin - margin_weighted)
+
+mean_errors <- margin_by_turnout_all %>% group_by(i) %>% 
+  summarise(avg_error = mean(error))
+
+# visualize for margin - validated margin
+fig9c <- ggplot() +
+  geom_point(data = margin_by_turnout_all, 
+             aes(x = turnout_rates[i]*100, y = error), colour = "grey", alpha = 0.25) +
+  geom_line(data = mean_errors, 
+             aes(x = turnout_rates[i]*100, y = avg_error), colour = "blue", size = 1) +
+  geom_hline(yintercept = 0, lty = 2, col = "black") +
+  labs(title = "c. Perry-Gallup index + demographics\n + structural election variables",
+       x = "Turnout (%)",
+       y = "Error between predicted and actual margin") +
+  coord_cartesian(xlim = c(30, 100), ylim = c(-50,50)) +
+  theme(plot.title = element_text(hjust = 0.5))
+fig9c
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# visualize for weighted margin
+fig10c <- margin_by_turnout_all %>% group_by(state) %>% mutate(weighted = mean(margin_weighted),
+         validated = mean(validated_margin)) %>% 
+  ggplot() + 
+  geom_point(aes(x = weighted, y = validated), alpha = 0.35) + 
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  labs(title = "c. Perry-Gallup index + demographics\n + structural election variables",
+       x = "Predicted margin of victory for Clinton", y = "Validated margin of victory for Clinton") +
+  theme(plot.title = element_text(hjust = 0.5))
+fig10c
+```
+
+
+# Random Forests
+
+## Perry-Gallup index
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# set up
+predictions_all <- data.frame()
+all_states <- unique(pooled$state)
+
+# create models and apply them to test data for all states
+for(i in all_states){
+# create training set 
+train <- pooled %>% filter(state == i, year %in% c(2008,2010,2012,2014))
+test <- pooled %>% filter(state == i, year == 2016)
+
+# run unweighted model
+formula <- as.formula(validated ~ vote_history + intent + interest + registration + 
+                        eligible)
+model <- randomForest(formula, data = train)
+# apply the models to test data
+# unweighted
+predictions <- cbind(test, predict(model, newdata = test, type = "prob"))
+predictions <- as.data.frame(predictions)
+predictions <- predictions %>% mutate(state = i)
+
+# all this data set to all
+predictions_all <- rbind(predictions_all, predictions)
+}
+```
+
+I'll first visualize the distribution of vote propensity scores for 9 random states using this model.
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+predictions_all %>% 
+  filter(state %in% sample(all_states, 9)) %>% 
+ggplot() +
+  geom_histogram(aes(x = Voted), position = "identity", bins = 20) +
+  facet_wrap(~state) +
+  coord_cartesian(xlim = c(0, 1)) +
+  labs(title = "Predicted vote propensity scores for 2016 CCES sample, by state",
+       x = "Vote propensity score") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r, include = FALSE, echo = FALSE, warning = FALSE, message = FALSE}
+# # consider turnout rates from 0.01 to 0.99 by 1
+# turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
+# 
+# # set up work
+# all_states <- unique(pooled$state)
+# true_pos_neg_rates_by_turnout_all <- data.frame()
+# 
+# # calculate true positive and negative rates for each level of turnout
+# validation_by_logreg_state <- function(location, turnout){
+#   willvote <- predictions_all %>% filter(state == location) %>% 
+#     top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+#         wt = Voted)
+#   wontvote <- predictions_all %>% filter(state == location) %>% 
+#     anti_join(willvote, by = "case_id")
+# 
+#   pred_voters <- willvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   pred_nonvoters <- wontvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+#     rename(voters = percent_v, nonvoters = percent_nv)
+# }
+# 
+# # loop through each state and calculate true positive/negative rates by turnout
+# # not particularly sure this is a good way to do this because there is so little distinction 
+# # between propensity scores here (for this set of predictors)
+# 
+# for (i in all_states){
+# true_pos_neg_rates_by_turnout <- data.frame()
+# j <- 1
+# while(j <= length(turnout_rates)){
+#    temp <- validation_by_logreg_state(i, turnout_rates[j])
+#    true_pos_neg_rates_by_turnout[j,1] <- temp$voters[temp$validated=="Yes"]
+#    true_pos_neg_rates_by_turnout[j,2] <- temp$nonvoters[temp$validated=="No"]
+#    true_pos_neg_rates_by_turnout[j,3] <- j
+#    true_pos_neg_rates_by_turnout[j,4] <- i
+#    j = j +1
+# }
+# true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, true_pos_neg_rates_by_turnout)
+# }
+
+```
+
+### Election Predictions
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# no propensity weight for margin
+vote_choice_logreg_state <- function(location, turnout){
+  predictions_all %>% filter(state == location) %>% 
+  top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+        wt = Voted) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+# margin weighted by propensity score
+vote_choice_logreg_weighted_state <- function(location){
+  predictions_all %>% filter(state == location) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight*Voted)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+# set up work
+all_state <- unique(pooled$states)
+margin_by_turnout_all <- data.frame()
+margin_by_weighted_turnout_all <- data.frame()
+
+#####
+
+# loop not working
+# calculate validated margin by state
+
+#####
+
+# unweighted margin
+for (i in all_states){
+  
+margin_by_turnout <- data.frame()
+j <- 1
+while(j <= length(turnout_rates)){
+   temp <- vote_choice_logreg_state(i, turnout_rates[j])
+   
+   # break loop if there are no estimates generated, for whatever reason
+   while (length(unique(temp$choice)) == 0) {
+     j = j + 1
+     temp <- vote_choice_logreg_state(i, turnout_rates[j])
+     }
+     
+   # put Clinton or Trump at 0 if no respondent said they'd vote for them
+   if(!'Hillary Clinton (Democrat)' %in% unique(temp$choice)){
+     newrow <- c('Hillary Clinton (Democrat)', 0)
+     names(newrow) <- c("choice","vote_share")
+     temp <- rbind(temp, newrow)
+   } 
+   if(!'Donald Trump (Republican)' %in% unique(temp$choice)){
+     newrow <- c('Donald Trump (Republican)', 0)
+     names(newrow) <- c("choice","vote_share")
+     temp <- rbind(temp, newrow)
+   } 
+   # make sure we have the right data type
+   temp$vote_share <- as.numeric(temp$vote_share)
+   
+
+   margin_by_turnout[j,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+   margin_by_turnout[j,2] <- j
+   margin_by_turnout[j,3] <- i
+   j = j +1
+   }
+
+# add to master data frame
+margin_by_turnout_all <- rbind(margin_by_turnout_all, margin_by_turnout)
+}
+
+# weighted margin
+for (i in all_states){
+  
+margin_by_weighted_turnout <- data.frame()
+temp <- vote_choice_logreg_weighted_state(i)
+margin_by_weighted_turnout[1,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+margin_by_weighted_turnout[1,2] <- i
+
+margin_by_weighted_turnout_all <- rbind(margin_by_weighted_turnout_all, margin_by_weighted_turnout)
+}
+
+# clean and compute difference between predicted margin and validated margin/weighted margin
+margin_by_turnout_all <- margin_by_turnout_all %>% 
+  rename(margin = V1, i = V2, state = V3) %>% 
+  left_join(validated_margin16_state, by = 'state') %>% 
+  rename(margin = margin.x, validated_margin = margin.y) %>% 
+  mutate(error = margin - validated_margin)
+
+margin_by_weighted_turnout_all <- margin_by_weighted_turnout_all %>% 
+  rename(margin = V1, state = V2)
+
+margin_by_turnout_all <- margin_by_turnout_all %>% 
+  left_join(margin_by_weighted_turnout_all, by  = 'state') %>% 
+  rename(margin = margin.x, margin_weighted = margin.y) %>% 
+  mutate(error_weighted = margin - margin_weighted)
+
+mean_errors <- margin_by_turnout_all %>% group_by(i) %>% 
+  summarise(avg_error = mean(error))
+
+# visualize for margin - validated margin
+fig13a <- ggplot() +
+  geom_point(data = margin_by_turnout_all, 
+             aes(x = turnout_rates[i]*100, y = error), colour = "grey", alpha = 0.35) +
+  geom_line(data = mean_errors, 
+             aes(x = turnout_rates[i]*100, y = avg_error), colour = "blue", size = 1) +
+  geom_hline(yintercept = 0, lty = 2, col = "black") +
+  labs(title = "a. Perry-Gallup index",
+       x = "Turnout (%)",
+       y = "Error between predicted and actual margin") +
+  coord_cartesian(xlim = c(30, 100), ylim = c(-50,50)) +
+  theme(plot.title = element_text(hjust = 0.5))
+fig13a
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# visualize for weighted margin
+fig14a <- margin_by_turnout_all %>% group_by(state) %>% mutate(weighted = mean(margin_weighted),
+         validated = mean(validated_margin)) %>% 
+  ggplot() + 
+  geom_point(aes(x = weighted, y = validated), alpha = 0.35) + 
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  labs(title = "a. Perry-Gallup index",
+       x = "Predicted margin of victory for Clinton", y = "Validated margin of victory for Clinton") +
+  theme(plot.title = element_text(hjust = 0.5))
+fig14a
+```
+
+
+## Perry-Gallup index + all variables potentially related to turnout
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# set up
+predictions_all <- data.frame()
+all_states <- unique(pooled$state)
+
+# create models and apply them to test data for all states
+for(i in all_states){
+# create training set 
+train <- pooled %>% filter(state == i, year %in% c(2008,2010,2012,2014))
+test <- pooled %>% filter(state == i, year == 2016)
+
+# run unweighted model
+formula <- as.formula(validated ~ vote_history + intent + interest + registration + 
+                        gender + age + race + education + income_new + 
+                        partisan_strength + religiosity + marital_status +
+                        residential_mobility)
+model <- randomForest(formula, data = train, na.action = na.omit)
+# apply the models to test data
+# unweighted
+predictions <- cbind(test, predict(model, newdata = test, type = "prob"))
+predictions <- as.data.frame(predictions)
+predictions <- predictions %>% mutate(state = i)
+
+# all this data set to all
+predictions_all <- rbind(predictions_all, predictions)
+}
+```
+
+I'll first visualize the distribution of vote propensity scores for 9 random states using this model.
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+predictions_all %>% 
+  filter(state %in% sample(all_states, 9)) %>% 
+ggplot() +
+  geom_histogram(aes(x = Voted), position = "identity", bins = 20) +
+  facet_wrap(~state) +
+  coord_cartesian(xlim = c(0, 1)) +
+  labs(title = "Predicted vote propensity scores for 2016 CCES sample, by state",
+       x = "Vote propensity score") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r, include = FALSE, echo = FALSE, warning = FALSE, message = FALSE}
+# # consider turnout rates from 0.01 to 0.99 by 1
+# turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
+# 
+# # set up work
+# all_states <- unique(pooled$state)
+# true_pos_neg_rates_by_turnout_all <- data.frame()
+# 
+# # calculate true positive and negative rates for each level of turnout
+# validation_by_logreg_state <- function(location, turnout){
+#   willvote <- predictions_all %>% filter(state == location) %>% 
+#     top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+#         wt = Voted)
+#   wontvote <- predictions_all %>% filter(state == location) %>% 
+#     anti_join(willvote, by = "case_id")
+# 
+#   pred_voters <- willvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   pred_nonvoters <- wontvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+#     rename(voters = percent_v, nonvoters = percent_nv)
+# }
+# 
+# # loop through each state and calculate true positive/negative rates by turnout
+# # not particularly sure this is a good way to do this because there is so little distinction 
+# # between propensity scores here (for this set of predictors)
+# 
+# for (i in all_states){
+# true_pos_neg_rates_by_turnout <- data.frame()
+# j <- 1
+# while(j <= length(turnout_rates)){
+#    temp <- validation_by_logreg_state(i, turnout_rates[j])
+#    true_pos_neg_rates_by_turnout[j,1] <- temp$voters[temp$validated=="Yes"]
+#    true_pos_neg_rates_by_turnout[j,2] <- temp$nonvoters[temp$validated=="No"]
+#    true_pos_neg_rates_by_turnout[j,3] <- j
+#    true_pos_neg_rates_by_turnout[j,4] <- i
+#    j = j +1
+# }
+# true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, true_pos_neg_rates_by_turnout)
+# }
+
+```
+
+### Election Predictions
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# no propensity weight for margin
+vote_choice_logreg_state <- function(location, turnout){
+  predictions_all %>% filter(state == location) %>% 
+  top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+        wt = Voted) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+# margin weighted by propensity score
+vote_choice_logreg_weighted_state <- function(location){
+  predictions_all %>% filter(state == location) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight*Voted)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+# set up work
+all_state <- unique(pooled$states)
+margin_by_turnout_all <- data.frame()
+margin_by_weighted_turnout_all <- data.frame()
+
+#####
+
+# loop not working
+# calculate validated margin by state
+
+#####
+
+# unweighted margin
+for (i in all_states){
+  
+margin_by_turnout <- data.frame()
+j <- 1
+while(j <= length(turnout_rates)){
+   temp <- vote_choice_logreg_state(i, turnout_rates[j])
+   
+   # break loop if there are no estimates generated, for whatever reason
+   while (length(unique(temp$choice)) == 0) {
+     j = j + 1
+     temp <- vote_choice_logreg_state(i, turnout_rates[j])
+     }
+     
+   # put Clinton or Trump at 0 if no respondent said they'd vote for them
+   if(!'Hillary Clinton (Democrat)' %in% unique(temp$choice)){
+     newrow <- c('Hillary Clinton (Democrat)', 0)
+     names(newrow) <- c("choice","vote_share")
+     temp <- rbind(temp, newrow)
+   } 
+   if(!'Donald Trump (Republican)' %in% unique(temp$choice)){
+     newrow <- c('Donald Trump (Republican)', 0)
+     names(newrow) <- c("choice","vote_share")
+     temp <- rbind(temp, newrow)
+   } 
+   # make sure we have the right data type
+   temp$vote_share <- as.numeric(temp$vote_share)
+   
+
+   margin_by_turnout[j,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+   margin_by_turnout[j,2] <- j
+   margin_by_turnout[j,3] <- i
+   j = j +1
+   }
+
+# add to master data frame
+margin_by_turnout_all <- rbind(margin_by_turnout_all, margin_by_turnout)
+}
+
+# weighted margin
+for (i in all_states){
+  
+margin_by_weighted_turnout <- data.frame()
+temp <- vote_choice_logreg_weighted_state(i)
+margin_by_weighted_turnout[1,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+margin_by_weighted_turnout[1,2] <- i
+
+margin_by_weighted_turnout_all <- rbind(margin_by_weighted_turnout_all, margin_by_weighted_turnout)
+}
+
+# clean and compute difference between predicted margin and validated margin/weighted margin
+margin_by_turnout_all <- margin_by_turnout_all %>% 
+  rename(margin = V1, i = V2, state = V3) %>% 
+  left_join(validated_margin16_state, by = 'state') %>% 
+  rename(margin = margin.x, validated_margin = margin.y) %>% 
+  mutate(error = margin - validated_margin)
+
+margin_by_weighted_turnout_all <- margin_by_weighted_turnout_all %>% 
+  rename(margin = V1, state = V2)
+
+margin_by_turnout_all <- margin_by_turnout_all %>% 
+  left_join(margin_by_weighted_turnout_all, by  = 'state') %>% 
+  rename(margin = margin.x, margin_weighted = margin.y) %>% 
+  mutate(error_weighted = margin - margin_weighted)
+
+mean_errors <- margin_by_turnout_all %>% group_by(i) %>% 
+  summarise(avg_error = mean(error))
+
+# visualize for margin - validated margin
+fig13b <- ggplot() +
+  geom_point(data = margin_by_turnout_all, 
+             aes(x = turnout_rates[i]*100, y = error), colour = "grey", alpha = 0.35) +
+  geom_line(data = mean_errors, 
+             aes(x = turnout_rates[i]*100, y = avg_error), colour = "blue", size = 1) +
+  geom_hline(yintercept = 0, lty = 2, col = "black") +
+  labs(title = "b. Perry-Gallup index + all variables potentially related to turnout",
+       x = "Turnout (%)",
+       y = "Error between predicted and actual margin") +
+  coord_cartesian(xlim = c(30, 100), ylim = c(-50,50)) +
+  theme(plot.title = element_text(hjust = 0.5))
+fig13b
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# visualize for weighted margin
+fig14b <- margin_by_turnout_all %>% group_by(state) %>% mutate(weighted = mean(margin_weighted),
+         validated = mean(validated_margin)) %>% 
+  ggplot() + 
+  geom_point(aes(x = weighted, y = validated), alpha = 0.35) + 
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  labs(title = "b. Perry-Gallup index + all variables potentially related to turnout",
+       x = "Predicted margin of victory for Clinton", y = "Validated margin of victory for Clinton") +
+  theme(plot.title = element_text(hjust = 0.5))
+fig14b
+```
+
+
+## Perry-Gallup index + demographics+ structural election variables
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# set up
+predictions_all <- data.frame()
+all_states <- unique(pooled$state)
+
+# create models and apply them to test data for all states
+for(i in all_states){
+# create training set 
+train <- pooled %>% filter(state == i, year %in% c(2008,2010,2012,2014))
+test <- pooled %>% filter(state == i, year == 2016)
+
+# run unweighted model
+formula <- as.formula(validated ~ vote_history + intent + interest + registration + 
+                        gender + age + race + education + income_new + 
+                        partisan_strength + religiosity + marital_status +
+                        residential_mobility + gdp_growth + approval + incumbent +
+                        polarization)
+model <- randomForest(formula, data = train, na.action = na.omit)
+# apply the models to test data
+# unweighted
+predictions <- cbind(test, predict(model, newdata = test, type = "prob"))
+predictions <- as.data.frame(predictions)
+predictions <- predictions %>% mutate(state = i)
+
+# all this data set to all
+predictions_all <- rbind(predictions_all, predictions)
+}
+```
+
+I'll first visualize the distribution of vote propensity scores for 9 random states using this model.
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+predictions_all %>% 
+  filter(state %in% sample(all_states, 9)) %>% 
+ggplot() +
+  geom_histogram(aes(x = Voted), position = "identity", bins = 20) +
+  facet_wrap(~state) +
+  coord_cartesian(xlim = c(0, 1)) +
+  labs(title = "Predicted vote propensity scores for 2016 CCES sample, by state",
+       x = "Vote propensity score") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r, include = FALSE, echo = FALSE, warning = FALSE, message = FALSE}
+# # consider turnout rates from 0.01 to 0.99 by 1
+# turnout_rates <- seq(from = 0.01, to = 1, by = 0.01)
+# 
+# # set up work
+# all_states <- unique(pooled$state)
+# true_pos_neg_rates_by_turnout_all <- data.frame()
+# 
+# # calculate true positive and negative rates for each level of turnout
+# validation_by_logreg_state <- function(location, turnout){
+#   willvote <- predictions_all %>% filter(state == location) %>% 
+#     top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+#         wt = Voted)
+#   wontvote <- predictions_all %>% filter(state == location) %>% 
+#     anti_join(willvote, by = "case_id")
+# 
+#   pred_voters <- willvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   pred_nonvoters <- wontvote %>% 
+#     count(validated = (validated == 'Voted')) %>% 
+#     mutate(percent = round((n/sum(n))*100,2)) %>% 
+#     mutate(validated = replace(validated, validated == "FALSE", "No")) %>% 
+#     mutate(validated = replace(validated, validated == "TRUE", "Yes")) %>% 
+#     select(-n)
+#   
+#   left_join(pred_voters, pred_nonvoters, by = "validated", suffix = c("_v","_nv")) %>% 
+#     rename(voters = percent_v, nonvoters = percent_nv)
+# }
+# 
+# # loop through each state and calculate true positive/negative rates by turnout
+# # not particularly sure this is a good way to do this because there is so little distinction 
+# # between propensity scores here (for this set of predictors)
+# 
+# for (i in all_states){
+# true_pos_neg_rates_by_turnout <- data.frame()
+# j <- 1
+# while(j <= length(turnout_rates)){
+#    temp <- validation_by_logreg_state(i, turnout_rates[j])
+#    true_pos_neg_rates_by_turnout[j,1] <- temp$voters[temp$validated=="Yes"]
+#    true_pos_neg_rates_by_turnout[j,2] <- temp$nonvoters[temp$validated=="No"]
+#    true_pos_neg_rates_by_turnout[j,3] <- j
+#    true_pos_neg_rates_by_turnout[j,4] <- i
+#    j = j +1
+# }
+# true_pos_neg_rates_by_turnout_all <- rbind(true_pos_neg_rates_by_turnout_all, true_pos_neg_rates_by_turnout)
+# }
+
+```
+
+### Election Predictions
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# no propensity weight for margin
+vote_choice_logreg_state <- function(location, turnout){
+  predictions_all %>% filter(state == location) %>% 
+  top_n(round(nrow(predictions_all[predictions_all$state == location,])*turnout,0), 
+        wt = Voted) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+# margin weighted by propensity score
+vote_choice_logreg_weighted_state <- function(location){
+  predictions_all %>% filter(state == location) %>% 
+  filter(choice %in% c("Donald Trump (Republican)","Hillary Clinton (Democrat)",
+                       "Gary Johnson (Libertarian)","Jill Stein (Green)","Other",
+                       "I'm Not Sure")) %>% 
+  group_by(choice) %>% 
+  summarise(n = sum(weight*Voted)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+}
+
+# set up work
+all_state <- unique(pooled$states)
+margin_by_turnout_all <- data.frame()
+margin_by_weighted_turnout_all <- data.frame()
+
+#####
+
+# loop not working
+# calculate validated margin by state
+
+#####
+
+# unweighted margin
+for (i in all_states){
+  
+margin_by_turnout <- data.frame()
+j <- 1
+while(j <= length(turnout_rates)){
+   temp <- vote_choice_logreg_state(i, turnout_rates[j])
+   
+   # break loop if there are no estimates generated, for whatever reason
+   while (length(unique(temp$choice)) == 0) {
+     j = j + 1
+     temp <- vote_choice_logreg_state(i, turnout_rates[j])
+     }
+     
+   # put Clinton or Trump at 0 if no respondent said they'd vote for them
+   if(!'Hillary Clinton (Democrat)' %in% unique(temp$choice)){
+     newrow <- c('Hillary Clinton (Democrat)', 0)
+     names(newrow) <- c("choice","vote_share")
+     temp <- rbind(temp, newrow)
+   } 
+   if(!'Donald Trump (Republican)' %in% unique(temp$choice)){
+     newrow <- c('Donald Trump (Republican)', 0)
+     names(newrow) <- c("choice","vote_share")
+     temp <- rbind(temp, newrow)
+   } 
+   # make sure we have the right data type
+   temp$vote_share <- as.numeric(temp$vote_share)
+   
+
+   margin_by_turnout[j,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+   margin_by_turnout[j,2] <- j
+   margin_by_turnout[j,3] <- i
+   j = j +1
+   }
+
+# add to master data frame
+margin_by_turnout_all <- rbind(margin_by_turnout_all, margin_by_turnout)
+}
+
+# weighted margin
+for (i in all_states){
+  
+margin_by_weighted_turnout <- data.frame()
+temp <- vote_choice_logreg_weighted_state(i)
+margin_by_weighted_turnout[1,1] <- temp$vote_share[temp$choice=='Hillary Clinton (Democrat)'] - temp$vote_share[temp$choice=='Donald Trump (Republican)']
+margin_by_weighted_turnout[1,2] <- i
+
+margin_by_weighted_turnout_all <- rbind(margin_by_weighted_turnout_all, margin_by_weighted_turnout)
+}
+
+# clean and compute difference between predicted margin and validated margin/weighted margin
+margin_by_turnout_all <- margin_by_turnout_all %>% 
+  rename(margin = V1, i = V2, state = V3) %>% 
+  left_join(validated_margin16_state, by = 'state') %>% 
+  rename(margin = margin.x, validated_margin = margin.y) %>% 
+  mutate(error = margin - validated_margin)
+
+margin_by_weighted_turnout_all <- margin_by_weighted_turnout_all %>% 
+  rename(margin = V1, state = V2)
+
+margin_by_turnout_all <- margin_by_turnout_all %>% 
+  left_join(margin_by_weighted_turnout_all, by  = 'state') %>% 
+  rename(margin = margin.x, margin_weighted = margin.y) %>% 
+  mutate(error_weighted = margin - margin_weighted)
+
+mean_errors <- margin_by_turnout_all %>% group_by(i) %>% 
+  summarise(avg_error = mean(error))
+
+# visualize for margin - validated margin
+fig13c <- ggplot() +
+  geom_point(data = margin_by_turnout_all, 
+             aes(x = turnout_rates[i]*100, y = error), colour = "grey", alpha = 0.35) +
+  geom_line(data = mean_errors, 
+             aes(x = turnout_rates[i]*100, y = avg_error), colour = "blue", size = 1) +
+  geom_hline(yintercept = 0, lty = 2, col = "black") +
+  labs(title = "c. Perry-Gallup index + demographics\n + structural election variables",
+       x = "Turnout (%)",
+       y = "Error between predicted and actual margin") +
+  coord_cartesian(xlim = c(30, 100), ylim = c(-50,50)) +
+  theme(plot.title = element_text(hjust = 0.5))
+fig13c
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# visualize for weighted margin
+fig14c <- margin_by_turnout_all %>% group_by(state) %>% mutate(weighted = mean(margin_weighted),
+         validated = mean(validated_margin)) %>% 
+  ggplot() + 
+  geom_point(aes(x = weighted, y = validated), alpha = 0.35) + 
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  labs(title = "c. Perry-Gallup index + demographics\n + structural election variables",
+       x = "Predicted margin of victory for Clinton", y = "Validated margin of victory for Clinton") +
+  theme(plot.title = element_text(hjust = 0.5))
+fig14c
+```
+
