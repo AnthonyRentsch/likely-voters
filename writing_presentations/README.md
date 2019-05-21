@@ -1,0 +1,1 @@
+The paper will eventually live in this directory. For now, find it [here](https://www.dropbox.com/s/okqnsk3ycw4gh4l/rentsch_schaffner_gross.pdf?dl=0).
