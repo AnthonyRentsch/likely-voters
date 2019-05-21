@@ -32,4 +32,4 @@ This project has been supported by SPM's [Advanced Empirical Research on Politic
 # Data
 
 * Cooperative Congressional Election Study (CCES) surveys from 2008, 2012, and 2016, as well as the cumulative file. Find that data [here](https://cces.gov.harvard.edu/).
-* Catalist turnout data (Brian Schaffner has access to an academic subscription to Catalist, which he has generously allowed me use for this project). This was used only for exploratory analyses.
+* Catalist turnout data (Brian Schaffner has access to an academic subscription to Catalist, which he has generously allowed me use for this project). This was only used for exploratory analyses.
