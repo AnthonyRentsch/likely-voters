@@ -246,7 +246,9 @@ formula <- as.formula(validated ~ vote_history + intent + interest + registratio
 set.seed(111)
 model <- randomForest(formula, data = train, importance=TRUE)
 
-pdf(file="~/Dropbox/LikelyVoters/Journal article/Data/Figures/vip_pg.pdf", width=5, height=4, onefile = F)
+# Figure 3a in article
+#pdf(file="~/Dropbox/LikelyVoters/Journal article/Data/Figures/vip_pg.pdf", width=5, height=4, onefile = F)
+tiff(filename="~/Dropbox/LikelyVoters/Journal article/Final version/Figure image files/fig3a.tiff", units="in", width=5, height=4, res=300)
 varImpPlot(model, main="Perry Gallup Index Only", type=1)
 dev.off()
 
@@ -313,7 +315,9 @@ formula <- as.formula(validated ~ vote_history + intent + interest + registratio
 set.seed(111)
 model <- randomForest(formula, data = train, importance=TRUE)
 
-pdf(file="~/Dropbox/LikelyVoters/Journal article/Data/Figures/vip_demos.pdf", width=5, height=4, onefile = F)
+# Figure 3b in article
+#pdf(file="~/Dropbox/LikelyVoters/Journal article/Data/Figures/vip_demos.pdf", width=5, height=4, onefile = F)
+tiff(filename="~/Dropbox/LikelyVoters/Journal article/Final version/Figure image files/fig3b.tiff", units="in", width=5, height=4, res=300)
 varImpPlot(model, main = "Perry Gallup + Demographics", type=1)
 dev.off()
 
@@ -370,12 +374,16 @@ predictions_sim <- predictions_sim %>% left_join(predictions_pgad_to_join, by="c
 
 
 ## Combine graphs
-pdf(file="~/Dropbox/LikelyVoters/Journal article/Data/Figures/prob_accuracy.pdf", width=6.5, height=4, onefile = F)
+# Figure 1 in article
+#pdf(file="~/Dropbox/LikelyVoters/Journal article/Data/Figures/prob_accuracy.pdf", width=6.5, height=4, onefile = F)
+tiff(filename="~/Dropbox/LikelyVoters/Journal article/Final version/Figure image files/fig1.tiff", units="in", width=6.5, height=4, res=300)
 ggarrange(fig12a, fig12b, ncol=2, common.legend = T, legend = "bottom")
 dev.off()
 
 ## Combine graphs
-pdf(file="~/Dropbox/LikelyVoters/Journal article/Data/Figures/histograms.pdf", width=7, height=3.5, onefile = F)
+# Figure 2 in article
+#pdf(file="~/Dropbox/LikelyVoters/Journal article/Data/Figures/histograms.pdf", width=7, height=3.5, onefile = F)
+tiff(filename="~/Dropbox/LikelyVoters/Journal article/Final version/Figure image files/fig2.tiff", units="in", width=7, height=3.5, res=300)
 ggarrange(hist1, hist2, ncol=2)
 dev.off()
 
@@ -518,7 +526,9 @@ margins_min_pred$min_method <- apply(margins_min_pred[,cols_of_interest], 1, fun
 margins_min_pred %>% group_by(sample_size) %>% count(min_method) %>% mutate(prop_best = n/sum(n))
 
 # create plot of distributions of margins from simulations for each method
-pdf(file="~/Dropbox/LikelyVoters/Journal article/Data/Figures/distributions_simulated_margins.pdf", width=8, height=5, onefile = F)
+# Figure 5 in article
+#pdf(file="~/Dropbox/LikelyVoters/Journal article/Data/Figures/distributions_simulated_margins.pdf", width=8, height=5, onefile = F)
+tiff(filename="~/Dropbox/LikelyVoters/Journal article/Final version/Figure image files/fig5.tiff", units="in", width=8, height=4, res=300)
 ggplot(margins_sim) +
   geom_density(aes(x=margin_already_def, colour='Already or definitely will vote'), fill=NA) +
   geom_density(aes(x=margin_pg_6s, colour='Perry-Gallup 6s'), fill=NA) +

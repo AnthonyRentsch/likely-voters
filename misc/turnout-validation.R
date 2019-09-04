@@ -8,27 +8,30 @@ predictions %>%
   # mutate(education = replace(education,education=='4','2-Year')) %>% 
   # mutate(education = replace(education,education=='5','4-Year')) %>% 
   # mutate(education = replace(education,education=='6','Post-Grad')) %>% 
-  # mutate(race = as.character(race)) %>% 
-  # mutate(race = replace(race,race=='1','White')) %>% 
-  # mutate(race = replace(race,race=='2','Black')) %>% 
-  # mutate(race = replace(race,race=='3','Hispanic')) %>% 
-  # mutate(race = replace(race,race=='4','Asian')) %>% 
-  # mutate(race = replace(race,race=='5','Native American')) %>% 
-  # mutate(race = replace(race,race=='6','Other')) %>% 
+  mutate(race = as.character(race)) %>%
+  mutate(race = replace(race,race=='1','White')) %>%
+  mutate(race = replace(race,race=='2','Black')) %>%
+  mutate(race = replace(race,race=='3','Hispanic')) %>%
+  mutate(race = replace(race,race=='4','Asian')) %>%
+  mutate(race = replace(race,race=='5','Native American')) %>%
+  mutate(race = replace(race,race=='6','Other')) %>%
   # mutate(age = replace(age,age %in% 18:29,'18-29')) %>% 
   # mutate(age = replace(age,age %in% 30:39,'30-39')) %>% 
   # mutate(age = replace(age,age %in% 40:49,'40-49')) %>% 
   # mutate(age = replace(age,age %in% 50:64,'50-64')) %>% 
   # mutate(age = replace(age,age %in% 65:99,'65+')) %>% 
-  group_by(voteprop_bucket = round(response*100, -1)) %>%
+  group_by(race, voteprop_bucket = round(Voted*100, -1)) %>%
   summarise(turnout = mean(validated=='Voted'), num = n()) %>%
   ggplot(aes(x = voteprop_bucket)) +
-  geom_smooth(aes(y = turnout*100), colour = '#0000FF', alpha = 0.5, se = F) +
+  geom_smooth(aes(y = turnout*100), alpha = 0.5, se = F) +
   geom_abline(intercept = 0, slope = 1, lty = 2, colour = 'black') +
   coord_cartesian(xlim = c(0,100), ylim = c(0,100)) +
   scale_x_continuous(breaks = seq(0,100,by=10), labels = seq(0,100,by=10)) +
+  facet_wrap(~race) +
+  scale_color_brewer(palette = "Paired") +
   labs(x='Vote propensity bucket',y='Turnout') +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.border = element_blank())
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        panel.border = element_blank(), legend.title = element_blank())
 
 # plot margin among validated voters by different variables
 tmp <- pooled %>%
