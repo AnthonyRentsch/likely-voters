@@ -530,15 +530,28 @@ margins_min_pred %>% group_by(sample_size) %>% count(min_method) %>% mutate(prop
 #pdf(file="~/Dropbox/LikelyVoters/Journal article/Data/Figures/distributions_simulated_margins.pdf", width=8, height=5, onefile = F)
 tiff(filename="~/Dropbox/LikelyVoters/Journal article/Final version/Figure image files/fig5.tiff", units="in", width=8, height=4, res=300)
 ggplot(margins_sim) +
-  geom_density(aes(x=margin_already_def, colour='Already or definitely will vote'), fill=NA) +
-  geom_density(aes(x=margin_pg_6s, colour='Perry-Gallup 6s'), fill=NA) +
-  geom_density(aes(x=margin_pg_6s_5s, colour='Perry-Gallup 6s and 5s'), fill=NA) +
-  geom_density(aes(x=margin_pg_weighted, colour='Weighted by PG model'), fill=NA) +
-  geom_density(aes(x=margin_pgad_weighted, colour='Weighted by PGaD model'), fill=NA) +
+  # already or definitely
+  geom_density(aes(x=margin_already_def, linetype='Already or definitely will vote', color='Already or definitely will vote'), fill=NA, show.legend=FALSE) +
+  stat_density(aes(x=margin_already_def, linetype='Already or definitely will vote', color='Already or definitely will vote'), geom='line', position='identity') +
+  # PG 6s
+  geom_density(aes(x=margin_pg_6s, linetype='Perry-Gallup 6s', color='Perry-Gallup 6s'), fill=NA, show.legend=FALSE) +
+  stat_density(aes(x=margin_pg_6s, linetype='Perry-Gallup 6s', color='Perry-Gallup 6s'), geom='line', position='identity') +
+  # PG 6s and 5s
+  geom_density(aes(x=margin_pg_6s_5s, linetype='Perry-Gallup 6s and 5s', color='Perry-Gallup 6s and 5s'), fill=NA, show.legend=FALSE) +
+  stat_density(aes(x=margin_pg_6s_5s, linetype='Perry-Gallup 6s and 5s', color='Perry-Gallup 6s and 5s'), geom='line', position='identity') +
+  # Weighted by PG
+  geom_density(aes(x=margin_pg_weighted, linetype='Weighted by PG model', color='Weighted by PG model'), fill=NA, show.legend=FALSE) +
+  stat_density(aes(x=margin_pg_weighted, linetype='Weighted by PG model', color='Weighted by PG model'), geom='line', position='identity') +
+  # Weighted by PGaD
+  geom_density(aes(x=margin_pgad_weighted, linetype='Weighted by PGaD model', color='Weighted by PGaD model'), fill=NA, show.legend=FALSE) +
+  stat_density(aes(x=margin_pgad_weighted, linetype='Weighted by PGaD model', color='Weighted by PGaD model'), geom='line', position='identity') +
+  # reference line
   geom_vline(xintercept = validated_margin16, col = 'black') +
+  # rest of chart specs
   facet_wrap(~sample_size) +
-  labs(x='Clinton margin in simulated sample', y='') +
-  scale_color_brewer(palette='Set1') +
+  labs(x='Clinton margin in simulated sample', y='', linetype='placeholder', color='placeholder') +
+  scale_color_manual(values=c('slategrey','slategrey','slategrey','slategrey','black')) +
+  scale_linetype_manual(values = c('dashed','longdash','dotdash','dotted','solid')) +
   theme_bw() +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.border = element_blank(),
         legend.title = element_blank())
