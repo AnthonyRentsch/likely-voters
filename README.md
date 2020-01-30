@@ -11,7 +11,7 @@ This repository is a collection of all of the work that has been done for this p
 
 * It's been presented at the annual conferences for the [American Association of Public Opinion Research](https://aapor.secure-platform.com/a/solicitations/10/sessiongallery/129/application/2280) (AAPOR) in 2019 and the [Society for Political Methodology](https://www.cambridge.org/core/membership/spm/about-us/awards/advanced-empirical-research-on-politics-for-undergraduates-program-aeropup) (SPM) in 2018.
 * It's been used to create predictions for the [2018 midterm elections](https://www.washingtonpost.com/news/monkey-cage/wp/2018/11/10/these-5-charts-explain-who-voted-how-in-the-2018-midterm-election/?noredirect=on&utm_term=.85aefbdf179f) using CCES data.
-* It's currently under review at a political science journal.
+* It's been accepted at [Public Opinion Quarterly](https://doi.org/10.1093/poq/nfz052).
 
 This project has been supported by SPM's [Advanced Empirical Research on Politics for Undergraduates Program](https://www.cambridge.org/core/membership/spm/about-us/awards/advanced-empirical-research-on-politics-for-undergraduates-program-aeropup) (AERoPUP). I've also received travel funding from AAPOR via their [Student Travel Award](https://www.aapor.org/Conference-Events/Awards/Award-Winners.aspx).
 
