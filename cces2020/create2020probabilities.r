@@ -562,17 +562,21 @@ new20$partisan_strength[new20$pid7 %in% c(4,8)] <- 4
 new20 <- new20[!is.na(new20$partisan_strength),]
 new20$partisan_strength <- as.factor(new20$partisan_strength)
 
+# add year
+new20$year <- 2020
+
 ####### END 2020 RECODE ####### 
 
 
 ####### Perry Gallup + Demos
 
 # create training set and enforce var types
-train <- pooled %>% filter(year %in% c(2008,2010,2012,2014,2016,2018))
-test <- new20
-test_df <- bind_rows(train, test[,-c('inputstate')])
-test_df$race <- as.factor(test_df$race)
-test_df$intent <- as.factor(test_df$intent)
+train <- pooled %>% filter(year %in% c(2008,2010,2012,2014,2016,2018)) %>% 
+  select(vote_history,intent,interest,registration,gender,age,race,
+         education,income_new,partisan_strength,year,validated)
+test <- new20 %>% select(vote_history,intent,interest,registration,gender,age,race,
+                         education,income_new,partisan_strength,year)
+test_df <- bind_rows(train, test)
 test_df$race <- as.factor(test_df$race)
 test_df$intent <- as.factor(test_df$intent)
 
@@ -581,14 +585,14 @@ formula <- as.formula(validated ~ vote_history + intent + interest + registratio
                         gender + age + race + education + income_new + 
                         partisan_strength)
 set.seed(2020)
-model <- randomForest(formula, data = test_df[!is.na(test_df$year),], importance=TRUE)
+model <- randomForest(formula, data = test_df[test_df$year!=2020,], importance=TRUE)
 
 # apply the models to test data
-predictions <- cbind(test_df[is.na(test_df$year),], 
-                     predict(model, newdata = test_df[is.na(test_df$year),], type = "prob"))
+predictions <- cbind(test_df[test_df$year==2020,], 
+                     predict(model, newdata = test_df[test_df$year==2020,], type = "prob"))
 predictions <- as.data.frame(predictions)
 
-write.csv(predictions %>% select(caseid, Voted), '~/Dropbox/LikelyVoters/Journal article/Data/preds_2018.csv')
+write.csv(predictions %>% select(caseid, Voted), '~/Dropbox/LikelyVoters/2020 Data/Data/preds_2020.csv')
 
 ############
 
@@ -597,11 +601,17 @@ ggplot(predictions) +
   geom_histogram(aes(x=Voted)) +
   labs(y='')
 
-ggplot(predictions) +
-  geom_histogram(aes(x=Voted, y = ..ncount..)) +
-  labs(y='', title='By race', subtitle='1=white, 2=black, 3=hispanic, 4=asian, 5=other') + facet_wrap(~race) 
+ggplot(predictions, aes(x=Voted, y = ..density..)) +
+  geom_histogram(alpha=0.4) +
+  geom_density() +
+  labs(y='', title='By race', subtitle='1=white, 2=black, 3=hispanic, 4=asian, 5=other') + 
+  facet_wrap(~race) 
 
-ggplot(predictions) +
-  geom_histogram(aes(x=Voted, y = ..ncount..)) +
+ggplot(predictions, aes(x=Voted, y = ..density..)) +
+  geom_histogram(alpha=0.4) +
+  geom_density() +
   labs(y='', title='By education', subtitle='1=No HS, 2=HS grad, 3=Some college, 4=2-year, 5=4-year, 6=Post-grad') + 
   facet_wrap(~education) 
+
+## TOPLINES ##
+mean(predictions$Voted)
