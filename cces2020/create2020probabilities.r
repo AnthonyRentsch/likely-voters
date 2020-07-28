@@ -24,7 +24,7 @@ theme(panel.border = element_blank())
 
 # upload CCES data
 cces16 <- read_tsv(file = "~/Dropbox/LikelyVoters/Journal article/Data/CCES16_Common_OUTPUT_Feb2018_VV.tab",
-                 col_names = TRUE)
+                   col_names = TRUE)
 cces12 <- read_tsv(file = "~/Dropbox/LikelyVoters/Journal article/Data/CCES12_Common_VV.tab",
                    col_names = TRUE)
 cces08 <- read_tsv(file = "~/Dropbox/LikelyVoters/Journal article/Data/cces_2008_common.tab",
@@ -34,68 +34,70 @@ cces14 <- read_tsv(file = "~/Dropbox/LikelyVoters/Journal article/Data/CCES14_Co
                    col_names = TRUE)
 cces18 <- read_csv(file = "~/Dropbox/LikelyVoters/Journal article/Data/2018 CCES - Confidential/CCES18_Commonforpredictions.csv",
                    col_names = TRUE)
+cces20 <- read_csv(file = "~/Dropbox/LikelyVoters/2020 Data/dfp_2020julyb.csv",
+                   col_names = TRUE)
 
 # remove variable labels from 2010 CCES
 var_label(cces10) <- NULL
 
 # add state abbreviations
 states <- data.frame(inputstate = seq(1:56), state_abbreviation = c(
-                                         "AL",
-                                         "AK",
-                                         "",
-                                         "AZ",
-                                         "AR",
-                                         "CA",
-                                         "",
-                                         "CO",
-                                         "CT",
-                                         "DE",
-                                         "D.C.",
-                                         "FL",
-                                         "GA",
-                                         "",
-                                         "HI",
-                                         "ID",
-                                         "IL",
-                                         "IN",
-                                         "IA",
-                                         "KS",
-                                         "KY",
-                                         "LA",
-                                         "ME",
-                                         "MD",
-                                         "MA",
-                                         "MI",
-                                         "MN",
-                                         "MS",
-                                         "MO",
-                                         "MT",
-                                         "NE",
-                                         "NV",
-                                         "NH",
-                                         "NJ",
-                                         "NM",
-                                         "NY",
-                                         "NC",
-                                         "ND",
-                                         "OH",
-                                         "OK",
-                                         "OR",
-                                         "PA",
-                                         "",
-                                         "RI",
-                                         "SC",
-                                         "SD",
-                                         "TN",
-                                         "TX",
-                                         "UT",
-                                         "VT",
-                                         "VA",
-                                         "",
-                                         "WA",
-                                         "WV",
-                                         "WI",
-                                         "WY"))
+  "AL",
+  "AK",
+  "",
+  "AZ",
+  "AR",
+  "CA",
+  "",
+  "CO",
+  "CT",
+  "DE",
+  "D.C.",
+  "FL",
+  "GA",
+  "",
+  "HI",
+  "ID",
+  "IL",
+  "IN",
+  "IA",
+  "KS",
+  "KY",
+  "LA",
+  "ME",
+  "MD",
+  "MA",
+  "MI",
+  "MN",
+  "MS",
+  "MO",
+  "MT",
+  "NE",
+  "NV",
+  "NH",
+  "NJ",
+  "NM",
+  "NY",
+  "NC",
+  "ND",
+  "OH",
+  "OK",
+  "OR",
+  "PA",
+  "",
+  "RI",
+  "SC",
+  "SD",
+  "TN",
+  "TX",
+  "UT",
+  "VT",
+  "VA",
+  "",
+  "WA",
+  "WV",
+  "WI",
+  "WY"))
 cces16 <- left_join(cces16, states, by = "inputstate")
 cces12 <- left_join(cces12, states, by = "inputstate")
 cces08 <- cces08 %>% rename(inputstate = V206)
@@ -103,16 +105,18 @@ cces08 <- left_join(cces08, states, by = "inputstate")
 
 # add names of racial groups
 race <- data.frame(race = c(1,2,3,4,5,6,7,8,98,99), racial_group = c("White","Black","Hispanic","Asian","Native American",
-                                                       "Mixed","Other","Middle Eastern","Skipped","Not Asked"))
+                                                                     "Mixed","Other","Middle Eastern","Skipped","Not Asked"))
 cces16 <- left_join(cces16, race, by = "race")
 cces12 <- left_join(cces12, race, by = "race")
 cces08 <- cces08 %>% rename(race = V211)
 cces08 <- left_join(cces08, race, by = "race")
 
 ##############
- 
+
 ## upload pooled CCES data
 pooled <- readRDS("~/Dropbox/LikelyVoters/Journal article/Data/cumulative_2006_2016 (1).Rds")
+# adjust age on pooled
+pooled$age <- CUR_YEAR - pooled$birthyr
 
 ## 2008
 cces08_tojoin <- cces08 %>% select(V100, V246, V217, V214, V244, CC301_2, CC301_3, CC335bush, V203, CC334, CC326, CC324_1, CC324_2) %>% 
@@ -125,7 +129,7 @@ cces08_tojoin$vote_history[cces08_tojoin$vote_history_primary == 1 |
                              cces08_tojoin$vote_history_caucus == 1] <- 1
 cces08_tojoin <- cces08_tojoin %>% select(-vote_history_primary, -vote_history_caucus)
 pooled <- left_join(pooled, cces08_tojoin, by = 'case_id')
-  
+
 ## 2012
 cces12_tojoin <- cces12 %>% select(V101, faminc, pew_churatd, marstat, newsint,
                                    CC351, votereg, CC308a, CC354, CC316) %>% 
@@ -332,7 +336,7 @@ pooled <- pooled %>% filter(year %in% c(2008, 2010, 2012, 2014, 2016)) %>%
          intent_pres_16, intent_rep, intent_sen, intent_gov, vote_history, intent, income_new, interest,registration, 
          religiosity, marital_status, residential_mobility, intent, partisan_strength
          #,gdp_growth, approval, incumbent, polarization
-         ) %>% 
+  ) %>% 
   rename(education = educ, validated = vv_turnout_gvm, choice = intent_pres_16) %>% 
   mutate(validated = as.factor(validated),     # set all categorical variables as factors
          vote_history = as.factor(vote_history),
@@ -350,7 +354,7 @@ pooled <- pooled %>% filter(year %in% c(2008, 2010, 2012, 2014, 2016)) %>%
          #,
          #incumbent = as.factor(incumbent),
          #polarization = as.factor(polarization)
-         )
+  )
 
 
 # calculate Prerry-Gallup index
@@ -390,15 +394,11 @@ pooled$eligible <- as.factor(pooled$eligible)
 va_08_10 <- pooled %>% filter(state=='Virginia', year %in% c(2008,2010))
 pooled <- anti_join(pooled, va_08_10, by='case_id')
 
-
-
-
 ####### RECODE 2018 DATA #######
 ## all obs with NA values are removed 
 ## --> about 2k obs dropped due to missing values
 
 new18 <- cces18
-new18$year <- 2018
 
 # intent - CC18_350
 new18$intent[new18$CC18_350 %in% c('I plan to vote before November 6th', 'Yes, definitely')] <- 1
@@ -477,14 +477,102 @@ new18$partisan_strength <- as.factor(new18$partisan_strength)
 
 ####### END 2018 RECODE ####### 
 
+# add 2018 to rest of pooled data
+pooled <- bind_rows(pooled, new18)
+
+
+
+####### RECODE 2020 DATA #######
+## all obs with NA values are removed 
+## --> about XXXXX obs dropped due to missing values
+## some of the variables were coded correctly to begin
+## but I go through motions of reassigning for completeness
+
+new20 <- cces20
+
+# intent - early_vote_2020
+new20$intent[new20$early_vote_2020 == 1] <- 1
+new20$intent[new20$early_vote_2020 == 2] <- 2
+new20$intent[new20$early_vote_2020 == 5] <- 5
+new20$intent[new20$early_vote_2020 == 4] <- 4
+new20 <- new20[!is.na(new20$intent),]
+new20$intent <- factor(new20$intent)
+
+# vote history - turnout16
+new20$vote_history[new20$turnout16 == 2] <- 0
+new20$vote_history[new20$turnout16 == 1] <- 1
+new20 <- new20[!is.na(new20$vote_history),]
+new20$vote_history <- as.factor(new20$vote_history)
+
+# interest - newsint
+new20$interest[new20$newsint == 1] <- 1
+new20$interest[new20$newsint == 2] <- 2
+new20$interest[new20$newsint == 3] <- 3
+new20$interest[new20$newsint %in% c(4,7)] <- 4
+new20 <- new20[!is.na(new20$interest),]
+new20$interest <- as.factor(new20$interest)
+
+# registration - votereg
+new20$registration[new20$votereg==1] <- 1
+new20 <- new20[!is.na(new20$registration),]
+new20$registration <- as.factor(new20$registration)
+
+# gender - gender
+new20$gender[new20$gender==1] <- 1
+new20$gender[new20$gender==2] <- 2
+new20 <- new20[!is.na(new20$gender),]
+new20$gender <- as.factor(new20$gender)
+
+# age - birthyr
+new20$age <- 2020 - new20$birthyr
+new20$age <- as.integer(new20$age)
+
+# race - race
+new20$race[new20$race==1] <- 1
+new20$race[new20$race==2] <- 2
+new20$race[new20$race==3] <- 3
+new20$race[new20$race==4] <- 4
+new20$race[new20$race %in% c(5,6,7,8)] <- 5
+new20 <- new20[!is.na(new20$race),]
+new20$race <- as.factor(new20$race)
+
+# educ - educ
+new20$education[new20$educ==1] <- 1
+new20$education[new20$educ==2] <- 2
+new20$education[new20$educ==3] <- 3
+new20$education[new20$educ==4] <- 4
+new20$education[new20$educ==5] <- 5
+new20$education[new20$educ==6] <- 6
+new20 <- new20[!is.na(new20$education),]
+new20$education <- as.factor(new20$education)
+
+# income - faminc_new
+new20$income_new[new20$faminc_new %in% c(1,2,3,4)] <- 1
+new20$income_new[new20$faminc_new %in% c(5,6,7,8,9)] <- 2
+new20$income_new[new20$faminc_new %in% c(10,11,12,13,14,15,16)] <- 3
+new20$income_new[new20$faminc_new == 97] <- 4
+new20 <- new20[!is.na(new20$income_new),]
+new20$income_new <- as.factor(new20$income_new)
+
+# partisan strength - pid7
+new20$partisan_strength[new20$pid7 %in% c(1,7)] <- 1
+new20$partisan_strength[new20$pid7 %in% c(2,6)] <- 2
+new20$partisan_strength[new20$pid7 %in% c(3,5)] <- 3
+new20$partisan_strength[new20$pid7 %in% c(4,8)] <- 4
+new20 <- new20[!is.na(new20$partisan_strength),]
+new20$partisan_strength <- as.factor(new20$partisan_strength)
+
+####### END 2020 RECODE ####### 
 
 
 ####### Perry Gallup + Demos
 
-# create training set 
-train <- pooled %>% filter(year %in% c(2008,2010,2012,2014,2016))
-test <- new18
-test_df <- bind_rows(train,test)
+# create training set and enforce var types
+train <- pooled %>% filter(year %in% c(2008,2010,2012,2014,2016,2018))
+test <- new20
+test_df <- bind_rows(train, test[,-c('inputstate')])
+test_df$race <- as.factor(test_df$race)
+test_df$intent <- as.factor(test_df$intent)
 test_df$race <- as.factor(test_df$race)
 test_df$intent <- as.factor(test_df$intent)
 
@@ -492,7 +580,7 @@ test_df$intent <- as.factor(test_df$intent)
 formula <- as.formula(validated ~ vote_history + intent + interest + registration + 
                         gender + age + race + education + income_new + 
                         partisan_strength)
-set.seed(111)
+set.seed(2020)
 model <- randomForest(formula, data = test_df[!is.na(test_df$year),], importance=TRUE)
 
 # apply the models to test data
@@ -517,5 +605,3 @@ ggplot(predictions) +
   geom_histogram(aes(x=Voted, y = ..ncount..)) +
   labs(y='', title='By education', subtitle='1=No HS, 2=HS grad, 3=Some college, 4=2-year, 5=4-year, 6=Post-grad') + 
   facet_wrap(~education) 
-
-
