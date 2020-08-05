@@ -32,8 +32,7 @@ cces08 <- read_tsv(file = "~/Dropbox/LikelyVoters/Journal article/Data/cces_2008
 cces10 <- read_dta(file = "~/Dropbox/LikelyVoters/Journal article/Data/cces_2010_common_validated.dta")
 cces14 <- read_tsv(file = "~/Dropbox/LikelyVoters/Journal article/Data/CCES14_Common_Content_Validated.tab",
                    col_names = TRUE)
-cces18 <- read_csv(file = "~/Dropbox/LikelyVoters/Journal article/Data/2018 CCES - Confidential/CCES18_Commonforpredictions.csv",
-                   col_names = TRUE)
+cces18 <- read_dta(file = "~/Dropbox/LikelyVoters/Journal article/Data/CCES18_Common_OUTPUT_vv.dta")
 cces20 <- read_csv(file = "~/Dropbox/LikelyVoters/2020 Data/dfp_2020julyb.csv",
                    col_names = TRUE)
 
@@ -299,7 +298,7 @@ pooled$race[pooled$race %in% c(7,8)] <- 6
 ## exclude Rs who were not asked these questions and other NA values
 # intent
 pooled <- pooled[pooled$intent <= 5,]
-pooled <- pooled[-pooled$intent=='__NA__',]
+pooled <- pooled[pooled$intent!='__NA__',]
 pooled <- pooled[!is.na(pooled$intent),]
 # vote history
 pooled <- pooled[pooled$vote_history <= 2,]
@@ -389,6 +388,9 @@ pooled$eligible[pooled$year == 2016 & pooled$age < 22] <- 0
 pooled$eligible[pooled$year == 2016 & pooled$age >= 22] <- 1
 pooled$eligible <- as.factor(pooled$eligible)
 
+# Force gender and age into factors
+pooled$gender <- as.factor(pooled$gender)
+pooled$race <- as.factor(pooled$race)
 
 # remove data from VA '08 and '10 because of no vote history
 va_08_10 <- pooled %>% filter(state=='Virginia', year %in% c(2008,2010))
@@ -401,38 +403,36 @@ pooled <- anti_join(pooled, va_08_10, by='case_id')
 new18 <- cces18
 
 # intent - CC18_350
-new18$intent[new18$CC18_350 %in% c('I plan to vote before November 6th', 'Yes, definitely')] <- 1
-new18$intent[new18$CC18_350 == 'I already voted (early or absentee)'] <- 2
-new18$intent[new18$CC18_350 == 'Probably'] <- 3
-new18$intent[new18$CC18_350 == 'No'] <- 4
-new18$intent[new18$CC18_350 == 'Undecided'] <- 5
+new18$intent[new18$CC18_350==1 | new18$CC18_350==4] <- 1
+new18$intent[new18$CC18_350 == 2] <- 2
+new18$intent[new18$CC18_350 == 3] <- 3
+new18$intent[new18$CC18_350 == 5] <- 4
+new18$intent[new18$CC18_350 == 6] <- 5
 new18 <- new18[!is.na(new18$intent),]
 new18$intent <- factor(new18$intent)
 
 # vote history - CC18_316 
-new18$vote_history[substr(new18$CC18_316,1,3)=='Yes'] <- 1
-new18$vote_history[substr(new18$CC18_316,1,2)=='No'] <- 0
-new18$vote_history[new18$CC18_316 == "I don't recall"] <- 0
+new18$vote_history[new18$CC18_316==1] <- 1
+new18$vote_history[new18$CC18_316==2] <- 0
+new18$vote_history[new18$CC18_316 == 3] <- 0
 new18 <- new18[!is.na(new18$vote_history),]
 new18$vote_history <- as.factor(new18$vote_history)
 
 # interest - newsint
-new18$interest[new18$newsint=='Most of the time'] <- 1
-new18$interest[new18$newsint=='Some of the time'] <- 2
-new18$interest[new18$newsint=='Only now and then'] <- 3
-new18$interest[new18$newsint %in% c("Don't know", "Hardly at all")] <- 4
+new18$interest[new18$newsint==1] <- 1
+new18$interest[new18$newsint==2] <- 2
+new18$interest[new18$newsint==3] <- 3
+new18$interest[new18$newsint>3] <- 4
 new18 <- new18[!is.na(new18$interest),]
 new18$interest <- as.factor(new18$interest)
 
 # registration - votereg
-new18$registration[new18$votereg=='Yes'] <- 1
-new18$registration[new18$votereg %in% c("Don't know","No")] <- 0
+new18$registration[new18$votereg==1] <- 1
+new18$registration[new18$votereg >1] <- 0
 new18 <- new18[!is.na(new18$registration),]
 new18$registration <- as.factor(new18$registration)
 
 # gender - gender
-new18$gender[new18$gender=='Male'] <- 1
-new18$gender[new18$gender=='Female'] <- 2
 new18 <- new18[!is.na(new18$gender),]
 new18$gender <- as.factor(new18$gender)
 
@@ -441,43 +441,48 @@ new18$age <- 2018 - new18$birthyr
 new18$age <- as.integer(new18$age)
 
 # race - race
-new18$race[new18$race=="White"] <- 1
-new18$race[new18$race=="Black"] <- 2
-new18$race[new18$race=="Hispanic"] <- 3
-new18$race[new18$race=="Asian"] <- 4
-new18$race[new18$race %in% c("Middle Eastern","Mixed","Native American","Other")] <- 5
+new18$race[new18$race>4] <- 5
 new18 <- new18[!is.na(new18$race),]
 new18$race <- as.factor(new18$race)
 
 # educ - educ
-new18$education[new18$educ=='No HS'] <- 1
-new18$education[new18$educ=='High school graduate'] <- 2
-new18$education[new18$educ=='Some college'] <- 3
-new18$education[new18$educ=='2-year'] <- 4
-new18$education[new18$educ=='4-year'] <- 5
-new18$education[new18$educ=='Post-grad'] <- 6
+new18$education <- new18$educ 
 new18 <- new18[!is.na(new18$education),]
 new18$education <- as.factor(new18$education)
 
 # income - faminc_new
-new18$income_new[new18$faminc_new %in% c('Less than $10,000','$10,000 - $19,999','$20,000 - $29,999','$30,000 - $39,999')] <- 1
-new18$income_new[new18$faminc_new %in% c('$40,000 - $49,999','$50,000 - $59,999','$60,000 - $69,999','$70,000 - $79,999','$80,000 - $99,999')] <- 2
-new18$income_new[new18$faminc_new %in% c('$100,000 - $119,999','$120,000 - $149,999','$150,000 - $199,999','$200,000 - $249,999','$250,000 - $349,999','$350,000 - $499,999','$500,000 or more')] <- 3
-new18$income_new[new18$faminc_new == 'Prefer not to say'] <- 4
+new18$income_new[new18$faminc_new<5] <- 1
+new18$income_new[new18$faminc_new>4 & new18$faminc_new<10] <- 2
+new18$income_new[new18$faminc_new>9 & new18$faminc_new<97] <- 3
+new18$income_new[new18$faminc_new == 97] <- 4
 new18 <- new18[!is.na(new18$income_new),]
 new18$income_new <- as.factor(new18$income_new)
 
 # partisan strength - pid7
-new18$partisan_strength[new18$pid7 %in% c('Strong Democrat','Strong Republican')] <- 1
-new18$partisan_strength[new18$pid7 %in% c('Not very strong Democrat','Not very strong Republican')] <- 2
-new18$partisan_strength[new18$pid7 %in% c('Lean Democrat','Lean Republican')] <- 3
-new18$partisan_strength[new18$pid7 %in% c('Independent','Not sure')] <- 4
+new18$partisan_strength[new18$pid7==1 | new18$pid7==7] <- 1
+new18$partisan_strength[new18$pid7==2 | new18$pid7==6] <- 2
+new18$partisan_strength[new18$pid7==3 | new18$pid7==5] <- 3
+new18$partisan_strength[new18$pid7==4 | new18$pid7==8] <- 4
 new18 <- new18[!is.na(new18$partisan_strength),]
 new18$partisan_strength <- as.factor(new18$partisan_strength)
 
+# Validated vote
+new18$validated <- "No Record Of Voting"
+new18$validated[!is.na(new18$CL_2018gvm)] <- "Voted"
+new18$validated <- as.factor(new18$validated)
+
+new18$year <- 2018
+
+new18 <- subset(new18, select=c("vote_history","intent","interest","registration","gender","age","race","education","income_new","partisan_strength","year", "validated"))
+
+
 ####### END 2018 RECODE ####### 
 
-# add 2018 to rest of pooled data
+# add 2018 to rest of pooled data 
+pooled <- pooled %>% filter(year %in% c(2008,2010,2012,2014,2016,2018)) %>%     
+  select(vote_history,intent,interest,registration,gender,age,race,
+         education,income_new,partisan_strength,year,validated)
+
 pooled <- bind_rows(pooled, new18)
 
 
@@ -488,13 +493,23 @@ pooled <- bind_rows(pooled, new18)
 ## some of the variables were coded correctly to begin
 ## but I go through motions of reassigning for completeness
 
-new20 <- cces20
+tracker <- read_csv(file = "~/Dropbox/LikelyVoters/2020 Data/tracker_july21_july27_election_items.csv",
+                    col_names = TRUE)
+new20 <- tracker
 
-# intent - early_vote_2020
-new20$intent[new20$early_vote_2020 == 1] <- 1
-new20$intent[new20$early_vote_2020 == 2] <- 2
-new20$intent[new20$early_vote_2020 == 5] <- 5
-new20$intent[new20$early_vote_2020 == 4] <- 4
+# intent - early_vote_2020 --> DFP only
+# new20$intent[new20$early_vote_2020 == 1] <- 1
+# new20$intent[new20$early_vote_2020 == 2] <- 2
+# new20$intent[new20$early_vote_2020 == 5] <- 5
+# new20$intent[new20$early_vote_2020 == 4] <- 4
+# new20 <- new20[!is.na(new20$intent),]
+# new20$intent <- factor(new20$intent)
+# intent - voteintent20 --> tracker only
+new20$intent[new20$voteintent20 == 1] <- 1
+new20$intent[new20$voteintent20 == 2] <- 2
+new20$intent[new20$voteintent20 %in% c(4,5)] <- 4
+new20$intent[new20$voteintent20 == 3] <- 5
+new20$intent[new20$voteintent20 == 1] <- 1
 new20 <- new20[!is.na(new20$intent),]
 new20$intent <- factor(new20$intent)
 
@@ -565,6 +580,7 @@ new20$partisan_strength <- as.factor(new20$partisan_strength)
 # add year
 new20$year <- 2020
 
+
 ####### END 2020 RECODE ####### 
 
 
@@ -579,20 +595,25 @@ test <- new20 %>% select(vote_history,intent,interest,registration,gender,age,ra
 test_df <- bind_rows(train, test)
 test_df$race <- as.factor(test_df$race)
 test_df$intent <- as.factor(test_df$intent)
+test_df$validated <- as.factor(test_df$validated)
 
 # run model
-formula <- as.formula(validated ~ vote_history + intent + interest + registration + 
+formula <- as.formula(validated ~ vote_history + intent + interest + 
+                        #registration + 
                         gender + age + race + education + income_new + 
                         partisan_strength)
 set.seed(2020)
-model <- randomForest(formula, data = test_df[test_df$year!=2020,], importance=TRUE)
+model <- randomForest(formula, 
+                      data = test_df %>% filter(year!=2020, registration==1), 
+                      importance=TRUE)
 
 # apply the models to test data
 predictions <- cbind(test_df[test_df$year==2020,], 
                      predict(model, newdata = test_df[test_df$year==2020,], type = "prob"))
 predictions <- as.data.frame(predictions)
 
-write.csv(predictions %>% select(caseid, Voted), '~/Dropbox/LikelyVoters/2020 Data/Data/preds_2020.csv')
+write.csv(cbind(new20, predictions$Voted) %>% rename(Voted = 'predictions$Voted'), 
+          '~/Dropbox/LikelyVoters/2020 Data/preds_2020.csv')
 
 ############
 
@@ -615,3 +636,35 @@ ggplot(predictions, aes(x=Voted, y = ..density..)) +
 
 ## TOPLINES ##
 mean(predictions$Voted)
+
+estimates_df <- cbind(new20, predictions$Voted) %>% rename(Voted = 'predictions$Voted') %>%
+  mutate(
+    vote_preference_no_leaners = 
+      case_when(
+        presvote20_decided == 1 ~ 'Biden',
+        presvote20_decided == 3 ~ 'Trump',
+        TRUE ~ 'Other'),
+    vote_preference_leaners = 
+      case_when(
+        presvote20_decided == 9 & presvote20_lean == 2 ~ 'Biden',
+        presvote20_decided == 9 & presvote20_lean == 4 ~ 'Trump',
+        TRUE ~ vote_preference_no_leaners
+      ))
+
+# no leaners - Biden +5.81
+no_leaners <- estimates_df %>% group_by(vote_preference_no_leaners) %>%
+  summarise(n = sum(weight_wave*Voted)) %>% # 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+no_leaners$vote_share[no_leaners$vote_preference_no_leaners=='Biden'] -
+  no_leaners$vote_share[no_leaners$vote_preference_no_leaners=='Trump']
+
+# leaners - Biden +6.33
+leaners <- estimates_df %>% group_by(vote_preference_leaners) %>%
+  summarise(n = sum(weight_wave*Voted)) %>% 
+  mutate(vote_share = round(n/sum(n)*100,2)) %>% 
+  select(-n)
+leaners$vote_share[leaners$vote_preference_leaners=='Biden'] -
+  leaners$vote_share[leaners$vote_preference_leaners=='Trump']
+
+
